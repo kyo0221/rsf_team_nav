@@ -1,65 +1,73 @@
-import os
-import yaml
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from ament_index_python.packages import get_package_share_directory
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
+from launch_ros.substitutions import FindPackageShare
 
 
 def generate_launch_description():
-    package_share_dir = get_package_share_directory('rsf_bringup')
-    bringup_param_path = os.path.join(package_share_dir, 'config', 'bringup_params.yaml')
+    bringup_param_path = PathJoinSubstitution([
+        FindPackageShare('rsf_bringup'),
+        'config',
+        'bringup_params.yaml',
+    ])
 
-    with open(bringup_param_path, 'r') as file:
-        launch_params = yaml.safe_load(file)['launch']['ros__parameters']
+    use_joy = LaunchConfiguration('use_joy')
+    use_icart = LaunchConfiguration('use_icart')
+    use_hokuyo = LaunchConfiguration('use_hokuyo')
 
-    # hokuyo_rsfの起動コマンドの作成
-    hokuyo_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(
-                get_package_share_directory('hokuyo_rsf'),
-                'launch',
-                'hokuyo_rsf.launch.py'
-            )
-        )
-    )
-
-    # コントローラーの起動コマンドの作成
-    joy_node = Node(
-        package='joy',
-        executable='joy_node',
-        name='joy_node',
-        parameters=[bringup_param_path],
-        output='screen'
-    )
-    teleop_node = Node(
-        package='teleop_twist_joy',
-        executable='teleop_node',
-        name='teleop_twist_joy_node',
-        parameters=[bringup_param_path],
-        output='screen'
-    )
-
-    # 起動エンティティクラスの作成
-    launch_description = LaunchDescription()
-
-    # 起動の追加
-    if launch_params.get('joy', True):
-        launch_description.add_entity(joy_node)
-        launch_description.add_entity(teleop_node)
-    if launch_params.get('icart', True):
-        icart_launch = IncludeLaunchDescription(
+    return LaunchDescription([
+        DeclareLaunchArgument(
+            'use_joy',
+            default_value='true',
+            description='Start joy_node and teleop_twist_joy.',
+        ),
+        DeclareLaunchArgument(
+            'use_icart',
+            default_value='false',
+            description='Include the icart_driver launch file.',
+        ),
+        DeclareLaunchArgument(
+            'use_hokuyo',
+            default_value='false',
+            description='Include the hokuyo_rsf launch file.',
+        ),
+        Node(
+            package='joy',
+            executable='joy_node',
+            name='joy_node',
+            parameters=[bringup_param_path],
+            output='screen',
+            condition=IfCondition(use_joy),
+        ),
+        Node(
+            package='teleop_twist_joy',
+            executable='teleop_node',
+            name='teleop_twist_joy_node',
+            parameters=[bringup_param_path],
+            output='screen',
+            condition=IfCondition(use_joy),
+        ),
+        IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
-                os.path.join(
-                    get_package_share_directory('icart_driver'),
+                PathJoinSubstitution([
+                    FindPackageShare('icart_driver'),
                     'launch',
-                    'icart_drive.launch.py'
-                )
-            )
-        )
-        launch_description.add_entity(icart_launch)
-
-    launch_description.add_entity(hokuyo_launch)
-
-    return launch_description
+                    'icart_drive.launch.py',
+                ])
+            ),
+            condition=IfCondition(use_icart),
+        ),
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                PathJoinSubstitution([
+                    FindPackageShare('hokuyo_rsf'),
+                    'launch',
+                    'hokuyo_rsf.launch.py',
+                ])
+            ),
+            condition=IfCondition(use_hokuyo),
+        ),
+    ])

@@ -1,0 +1,6 @@
+[submodule "rsf_simulator"]
+	path = rsf_simulator
+	url = https://github.com/kyo0221/rsf_simulator.git
+[submodule "icart_driver"]
+	path = icart_driver
+	url = https://github.com/kyo0221/icart_driver.git

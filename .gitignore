@@ -23,3 +23,6 @@ capture/
 
 # CodeChecker
 .codechecker/
+
+# TestCode
+test

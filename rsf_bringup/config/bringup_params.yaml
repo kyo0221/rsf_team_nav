@@ -1,3 +1,7 @@
+launch:
+  ros__parameters:
+    sim: true
+
 joy_node:
   ros__parameters:
     deadzone: 0.05

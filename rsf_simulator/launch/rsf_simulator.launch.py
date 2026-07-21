@@ -1,0 +1,50 @@
+import os
+
+from ament_index_python.packages import get_package_share_directory
+
+from launch import LaunchDescription
+from launch.actions import AppendEnvironmentVariable, IncludeLaunchDescription
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch_ros.actions import Node
+
+
+def generate_launch_description():
+    simulator_dir = get_package_share_directory('rsf_simulator')
+
+    world_file = os.path.join(simulator_dir, 'worlds', 'tsudanuma2-3.sdf')
+
+    set_resource_path = AppendEnvironmentVariable(
+        'IGN_GAZEBO_RESOURCE_PATH',
+        os.path.dirname(simulator_dir)
+    )
+
+    gazebo = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([
+            os.path.join(get_package_share_directory('ros_gz_sim'), 'launch', 'gz_sim.launch.py')
+        ]),
+        launch_arguments=[('gz_args', f'-r -v 4 {world_file}')]
+    )
+
+    bridge_node = Node(
+        package='ros_gz_bridge',
+        executable='parameter_bridge',
+        arguments=[
+            '/clock@rosgraph_msgs/msg/Clock[ignition.msgs.Clock',
+            '/rsf/hokuyo3d/points@sensor_msgs/msg/PointCloud2[ignition.msgs.PointCloudPacked',
+            '/rsf/imu@sensor_msgs/msg/Imu[ignition.msgs.IMU',
+            '/rsf/nav_sat_fix@sensor_msgs/msg/NavSatFix[ignition.msgs.NavSat',
+            '/odom@nav_msgs/msg/Odometry[ignition.msgs.Odometry',
+            '/cmd_vel@geometry_msgs/msg/Twist]ignition.msgs.Twist',
+        ],
+        remappings=[
+            ('/rsf/hokuyo3d/points', '/rsf/hokuyo_cloud2'),
+            ('/odom', '/rsf/rsf_odom'),
+        ],
+        output='screen',
+    )
+
+    return LaunchDescription([
+        set_resource_path,
+        gazebo,
+        bridge_node,
+    ])

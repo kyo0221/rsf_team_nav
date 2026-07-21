@@ -1,0 +1,75 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:macro name="base_link">
+    <link name="base_footprint"/>
+
+    <joint name="base_footprint_joint" type="fixed">
+      <parent link="base_footprint"/>
+      <child link="base_link"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </joint>
+
+    <link name="base_link">
+      <inertial>
+        <origin xyz="0.091102 0 0.176713" rpy="0 0 0"/>
+        <mass value="25.4"/>
+        <inertia ixx="1.22486" ixy="0" ixz="0.016878"
+                 iyy="3.58311" iyz="0" izz="3.93825"/>
+      </inertial>
+
+      <collision>
+        <origin xyz="0.09 0 0.1715" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.4 0.404 0.202"/>
+        </geometry>
+      </collision>
+      <collision>
+        <origin xyz="0.36125 0 0.2625" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.1425 0.404 0.02"/>
+        </geometry>
+      </collision>
+      <collision>
+        <origin xyz="0.35625 0 0.156" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.1325 0.404 0.02"/>
+        </geometry>
+      </collision>
+      <collision>
+        <origin xyz="-0.12 0 0.4815" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.02 0.404 0.822"/>
+        </geometry>
+      </collision>
+
+      <visual>
+        <origin xyz="0.09 0 0.1715" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.4 0.404 0.202"/>
+        </geometry>
+        <material name="body_orange"/>
+      </visual>
+      <visual>
+        <origin xyz="0.36125 0 0.2625" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.1425 0.404 0.02"/>
+        </geometry>
+        <material name="body_orange"/>
+      </visual>
+      <visual>
+        <origin xyz="0.35625 0 0.156" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.1325 0.404 0.02"/>
+        </geometry>
+        <material name="body_orange"/>
+      </visual>
+      <visual>
+        <origin xyz="-0.12 0 0.4815" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.02 0.404 0.822"/>
+        </geometry>
+        <material name="body_orange"/>
+      </visual>
+    </link>
+  </xacro:macro>
+</robot>

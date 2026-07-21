@@ -1,0 +1,79 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:macro name="sensor_rsf_x001" params="parent *origin">
+    <joint name="rsf_x001_joint" type="fixed">
+      <parent link="${parent}"/>
+      <child link="rsf_x001_link"/>
+      <xacro:insert_block name="origin"/>
+    </joint>
+
+    <link name="rsf_x001_link">
+      <inertial>
+        <origin xyz="-0.1 0 0.0053" rpy="0 0 0"/>
+        <mass value="3.0"/>
+        <inertia ixx="0.001" ixy="0" ixz="0"
+                 iyy="0.001" iyz="0" izz="0.001"/>
+      </inertial>
+
+      <collision>
+        <origin xyz="-0.1 0 0.0053" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.2112 0.147 0.1656"/>
+        </geometry>
+      </collision>
+
+      <visual>
+        <origin xyz="-0.0296 0 -0.0775" rpy="1.5708 0 1.5708"/>
+        <geometry>
+          <mesh filename="package://rsf_description/meshes/RSF-X001.stl" scale="0.001 0.001 0.001"/>
+        </geometry>
+        <material name="sensor_dark_grey"/>
+      </visual>
+    </link>
+
+    <joint name="rsf_hokuyo3d_joint" type="fixed">
+      <parent link="rsf_x001_link"/>
+      <child link="rsf_hokuyo3d"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </joint>
+
+    <link name="rsf_hokuyo3d">
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="0.0001"/>
+        <inertia ixx="1e-9" ixy="0" ixz="0"
+                 iyy="1e-9" iyz="0" izz="1e-9"/>
+      </inertial>
+    </link>
+
+    <joint name="rsf_hokuyo3d_imu_joint" type="fixed">
+      <parent link="rsf_x001_link"/>
+      <child link="rsf_hokuyo3d_imu"/>
+      <origin xyz="-0.1 0 -0.02" rpy="0 0 0"/>
+    </joint>
+
+    <link name="rsf_hokuyo3d_imu">
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="0.0001"/>
+        <inertia ixx="1e-9" ixy="0" ixz="0"
+                 iyy="1e-9" iyz="0" izz="1e-9"/>
+      </inertial>
+    </link>
+
+    <joint name="rsf_gnss_joint" type="fixed">
+      <parent link="rsf_x001_link"/>
+      <child link="rsf_gnss"/>
+      <origin xyz="-0.1 0 0.085" rpy="0 0 0"/>
+    </joint>
+
+    <link name="rsf_gnss">
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="0.0001"/>
+        <inertia ixx="1e-9" ixy="0" ixz="0"
+                 iyy="1e-9" iyz="0" izz="1e-9"/>
+      </inertial>
+    </link>
+  </xacro:macro>
+</robot>

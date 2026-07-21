@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<robot name="orne_boxF" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:include filename="$(find rsf_description)/urdf/material_colors.xacro"/>
+  <xacro:include filename="$(find rsf_description)/urdf/links/base_link.urdf.xacro"/>
+  <xacro:include filename="$(find rsf_description)/urdf/links/wheel_link.urdf.xacro"/>
+  <xacro:include filename="$(find rsf_description)/urdf/links/caster_wheel_link.urdf.xacro"/>
+  <xacro:include filename="$(find rsf_description)/urdf/sensors/rsf_x001.urdf.xacro"/>
+
+  <xacro:base_link/>
+
+  <xacro:wheel prefix="left" parent="base_link">
+    <origin xyz="0 0.23075 0.152" rpy="-1.5708 0 0"/>
+  </xacro:wheel>
+  <xacro:wheel prefix="right" parent="base_link">
+    <origin xyz="0 -0.23075 0.152" rpy="-1.5708 0 0"/>
+  </xacro:wheel>
+
+  <xacro:caster_wheel prefix="left" parent="base_link">
+    <origin xyz="0.392 0.15 0.05" rpy="1.5708 0 0"/>
+  </xacro:caster_wheel>
+  <xacro:caster_wheel prefix="right" parent="base_link">
+    <origin xyz="0.392 -0.15 0.05" rpy="1.5708 0 0"/>
+  </xacro:caster_wheel>
+
+  <xacro:sensor_rsf_x001 parent="base_link">
+    <origin xyz="0.3 0 0.35" rpy="0 0 0"/>
+  </xacro:sensor_rsf_x001>
+
+</robot>

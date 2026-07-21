@@ -32,7 +32,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'use_hokuyo',
             default_value='false',
-            description='Include the hokuyo_rsf launch file.',
+            description='Start the hokuyo_rsf driver node.',
         ),
         Node(
             package='joy',
@@ -63,11 +63,35 @@ def generate_launch_description():
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
                 PathJoinSubstitution([
-                    FindPackageShare('hokuyo_rsf'),
+                    FindPackageShare('rsf_description'),
                     'launch',
-                    'hokuyo_rsf.launch.py',
+                    'display.launch.py',
                 ])
             ),
+        ),
+        Node(
+            package='rsf_bringup',
+            executable='tf_odom_to_footprint',
+            name='tf_odom_to_footprint',
+            output='screen',
+        ),
+        Node(
+            package='hokuyo_rsf',
+            executable='hokuyo_rsf',
+            name='hokuyo_rsf',
+            output='screen',
+            parameters=[
+                PathJoinSubstitution([
+                    FindPackageShare('hokuyo_rsf'),
+                    'config',
+                    'hokuyo_rsf.yaml',
+                ]),
+                {'param_files_dir': PathJoinSubstitution([
+                    FindPackageShare('hokuyo_rsf'),
+                    'config',
+                ])},
+                {'broadcast_tf': False},
+            ],
             condition=IfCondition(use_hokuyo),
         ),
     ])

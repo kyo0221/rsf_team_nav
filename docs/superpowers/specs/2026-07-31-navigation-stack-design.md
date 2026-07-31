@@ -104,3 +104,26 @@ costmaps sourcing obstacles from `/scan`.
 - Real-robot (`sim:=false`) tuning of the navigation parameters.
 - Any controller/planner other than MPPI + SmacPlanner2D.
 - A permanent/automated mapping pipeline — the map is generated once and committed.
+
+## Known upstream patches required after `vcs import`
+
+These two fixes live in the vcs-imported (gitignored) `navigation2/` and `emcl2_ros2/`
+checkouts, so they are not tracked by this repo and must be reapplied on a fresh
+`vcs import` against the pinned branches:
+
+- `navigation2/nav2_route/src/node_spatial_tree.cpp`: change
+  `std::vector<unsigned int> ret_index(...)` to `std::vector<size_t> ret_index(...)`.
+  The apt-installed `libnanoflann-dev` on Ubuntu 22.04 uses `size_t` as
+  `KDTreeSingleIndexAdaptor`'s `IndexType`, which this Humble-branch file predates.
+- `emcl2_ros2/src/emcl2_node.cpp`: change the `scan` subscription's QoS from
+  `2` (which resolves to `RELIABLE`) to `rclcpp::SensorDataQoS()`. `pointcloud_to_laserscan`
+  publishes `/scan` as `BEST_EFFORT`; without this, the QoS mismatch silently drops
+  every scan and `emcl2_node` never localizes.
+- `rsf_navigation_executor/config/nav2_params.yaml` (tracked, already fixed): the
+  `CostCritic.consider_footprint` must be `false` when the costmap uses `robot_radius`
+  (not an explicit footprint polygon), and the planner plugin id is
+  `nav2_smac_planner/SmacPlanner2D` (slash, not `::`) — the pluginlib export only
+  registers the slash form for this package.
+- Also required: `ros-humble-ompl` and `ros-humble-behaviortree-cpp-v3` (missing from
+  this machine's apt mirror at development time) plus the rest of the packages listed
+  in `navigation.repos`' dependencies.

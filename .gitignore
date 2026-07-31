@@ -12,6 +12,10 @@ install/
 log/
 /src/
 
+# navigation.repos imports
+/navigation2/
+/emcl2_ros2/
+
 # Python
 *.pyc
 

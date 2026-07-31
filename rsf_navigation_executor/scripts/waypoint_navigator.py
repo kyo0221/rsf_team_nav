@@ -5,6 +5,7 @@ import rclpy
 import yaml
 from action_msgs.msg import GoalStatus
 from nav2_msgs.action import NavigateToPose
+from nav2_msgs.msg import SpeedLimit
 from rclpy.action import ActionClient
 from rclpy.node import Node
 from std_srvs.srv import Trigger
@@ -28,9 +29,11 @@ class WaypointNavigator(Node):
         self.index = 0
         self.running = False
         self.paused = False
+        self.checkpoint_hold = False
         self.goal_handle = None
 
         self.action_client = ActionClient(self, NavigateToPose, 'navigate_to_pose')
+        self.speed_limit_pub = self.create_publisher(SpeedLimit, 'speed_limit', 10)
         self.create_service(Trigger, '~/start', self.on_start)
         self.create_service(Trigger, '~/pause', self.on_pause)
         self.create_service(Trigger, '~/resume', self.on_resume)
@@ -64,13 +67,19 @@ class WaypointNavigator(Node):
             response.message = 'not paused'
             return response
         self.paused = False
-        self.send_current_goal()
+        if self.checkpoint_hold:
+            self.checkpoint_hold = False
+            self.advance_and_send()
+        else:
+            self.send_current_goal()
         response.success = True
         return response
 
     def send_current_goal(self):
         wp = self.waypoints[self.index]
         qz, qw = yaw_to_quaternion(float(wp.get('yaw', 0.0)))
+
+        self.publish_speed_limit(wp)
 
         goal_msg = NavigateToPose.Goal()
         goal_msg.pose.header.frame_id = 'map'
@@ -83,6 +92,14 @@ class WaypointNavigator(Node):
         self.get_logger().info(f'Sending waypoint {self.index}: x={wp["x"]}, y={wp["y"]}')
         self.action_client.wait_for_server()
         self.action_client.send_goal_async(goal_msg).add_done_callback(self.on_goal_response)
+
+    def publish_speed_limit(self, wp):
+        msg = SpeedLimit()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.header.frame_id = 'map'
+        msg.percentage = True
+        msg.speed_limit = float(wp.get('speed_limit', 0.0))
+        self.speed_limit_pub.publish(msg)
 
     def on_goal_response(self, future):
         self.goal_handle = future.result()
@@ -99,6 +116,15 @@ class WaypointNavigator(Node):
         if status != GoalStatus.STATUS_SUCCEEDED:
             self.get_logger().warn(f'Waypoint {self.index} did not succeed (status {status})')
 
+        if status == GoalStatus.STATUS_SUCCEEDED and self.waypoints[self.index].get('checkpoint', False):
+            self.paused = True
+            self.checkpoint_hold = True
+            self.get_logger().info(f'Reached checkpoint at waypoint {self.index}, waiting for resume')
+            return
+
+        self.advance_and_send()
+
+    def advance_and_send(self):
         self.index += 1
         if self.index >= len(self.waypoints):
             if not self.loop:

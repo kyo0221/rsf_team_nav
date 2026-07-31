@@ -18,7 +18,6 @@ class WaypointNavigator(Node):
 
     def __init__(self):
         super().__init__('waypoint_navigator')
-        self.declare_parameter('use_sim_time', True)
         self.declare_parameter('waypoints_file', '')
 
         with open(self.get_parameter('waypoints_file').value) as f:

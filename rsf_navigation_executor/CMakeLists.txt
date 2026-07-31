@@ -10,6 +10,7 @@ install(
 
 install(PROGRAMS
   scripts/waypoint_navigator.py
+  scripts/waypoint_recorder.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

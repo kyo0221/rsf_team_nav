@@ -128,6 +128,9 @@
     <plugin filename="libignition-gazebo-physics-system.so" name="ignition::gazebo::systems::Physics"/>
     <plugin filename="libignition-gazebo-user-commands-system.so" name="ignition::gazebo::systems::UserCommands"/>
     <plugin filename="libignition-gazebo-scene-broadcaster-system.so" name="ignition::gazebo::systems::SceneBroadcaster"/>
+    <plugin filename="libignition-gazebo-sensors-system.so" name="ignition::gazebo::systems::Sensors">
+      <render_engine>ogre2</render_engine>
+    </plugin>
     <plugin filename="libignition-gazebo-imu-system.so" name="ignition::gazebo::systems::Imu"/>
     <plugin filename="ignition-gazebo-navsat-system" name="ignition::gazebo::systems::NavSat"/>
 

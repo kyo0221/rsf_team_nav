@@ -5,20 +5,24 @@ from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import AppendEnvironmentVariable, DeclareLaunchArgument, IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 
 
 def generate_launch_description():
     simulator_dir = get_package_share_directory('rsf_simulator')
 
-    default_world_file = os.path.join(simulator_dir, 'worlds', 'tsudanuma2-3.sdf')
-
     world_arg = DeclareLaunchArgument(
         'world',
-        default_value=default_world_file,
-        description='Path to the .sdf world file to load'
+        default_value='tsudanuma2-3',
+        choices=['tsudanuma2-3', 'tsudanuma'],
+        description='World in rsf_simulator/worlds: tsudanuma2-3 (building editor) '
+                    'or tsudanuma (generated from an occupancy grid map by map2sdf)'
     )
+
+    world_file = PathJoinSubstitution([
+        simulator_dir, 'worlds', [LaunchConfiguration('world'), '.sdf']
+    ])
 
     set_resource_path = AppendEnvironmentVariable(
         'IGN_GAZEBO_RESOURCE_PATH',
@@ -29,7 +33,7 @@ def generate_launch_description():
         PythonLaunchDescriptionSource([
             os.path.join(get_package_share_directory('ros_gz_sim'), 'launch', 'gz_sim.launch.py')
         ]),
-        launch_arguments=[('gz_args', ['-r -v 4 ', LaunchConfiguration('world')])]
+        launch_arguments=[('gz_args', ['-r -v 4 ', world_file])]
     )
 
     bridge_node = Node(

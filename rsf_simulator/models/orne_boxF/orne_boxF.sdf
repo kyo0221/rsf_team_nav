@@ -528,6 +528,11 @@
       </visual>
     </link>
 
+    <plugin name="rsf_simulator::InterlaceRotationPlugin" filename="libinterlace_rotation_plugin.so">
+      <joint_name>rsf_hokuyo3d_joint</joint_name>
+      <interlace>1</interlace>
+    </plugin>
+
     <plugin name="ignition::gazebo::systems::DiffDrive" filename="libignition-gazebo-diff-drive-system.so">
       <left_joint>left_wheel_joint</left_joint>
       <right_joint>right_wheel_joint</right_joint>

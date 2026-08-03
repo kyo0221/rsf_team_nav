@@ -23,6 +23,8 @@ ros2 launch rsf_simulator rsf_simulator.launch.py world:=tsudanuma
 
 `worlds/` に `<名前>.sdf` を置き、launch の `choices` に名前を追加すれば選択肢を増やせる。
 
+`interlace:=N`（1〜20、デフォルト 1）で YVT-35LX のインターレースを再現する。各 20Hz フレームの照射方位が 6°/N ずつ巡回シフトし、N フレーム蓄積で水平密度が N 倍になる。
+
 ## 出入りするトピック
 
 `ros_gz_bridge` が以下を ROS 側に橋渡しする。

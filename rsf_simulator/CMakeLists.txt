@@ -4,6 +4,7 @@ project(rsf_simulator)
 find_package(ament_cmake REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(ignition-gazebo6 REQUIRED)
 
 add_library(interlace_deskew src/interlace_deskew.cpp)
 target_compile_features(interlace_deskew PUBLIC cxx_std_17)
@@ -15,6 +16,12 @@ target_link_libraries(interlace_deskew_node interlace_deskew)
 ament_target_dependencies(interlace_deskew_node rclcpp sensor_msgs)
 
 install(TARGETS interlace_deskew_node DESTINATION lib/${PROJECT_NAME})
+
+add_library(interlace_rotation_plugin SHARED src/interlace_rotation_plugin.cpp)
+target_compile_features(interlace_rotation_plugin PUBLIC cxx_std_17)
+target_link_libraries(interlace_rotation_plugin ignition-gazebo6::ignition-gazebo6)
+
+install(TARGETS interlace_rotation_plugin DESTINATION lib)
 
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)

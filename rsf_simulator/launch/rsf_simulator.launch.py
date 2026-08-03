@@ -1,9 +1,9 @@
 import os
 
-from ament_index_python.packages import get_package_share_directory
+from ament_index_python.packages import get_package_prefix, get_package_share_directory
 
 from launch import LaunchDescription
-from launch.actions import AppendEnvironmentVariable, DeclareLaunchArgument, IncludeLaunchDescription
+from launch.actions import AppendEnvironmentVariable, DeclareLaunchArgument, IncludeLaunchDescription, SetEnvironmentVariable
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
@@ -34,6 +34,15 @@ def generate_launch_description():
     set_resource_path = AppendEnvironmentVariable(
         'IGN_GAZEBO_RESOURCE_PATH',
         os.path.dirname(simulator_dir)
+    )
+
+    set_plugin_path = AppendEnvironmentVariable(
+        'IGN_GAZEBO_SYSTEM_PLUGIN_PATH',
+        os.path.join(get_package_prefix('rsf_simulator'), 'lib')
+    )
+
+    set_interlace_env = SetEnvironmentVariable(
+        'RSF_INTERLACE', LaunchConfiguration('interlace')
     )
 
     gazebo = IncludeLaunchDescription(
@@ -74,6 +83,8 @@ def generate_launch_description():
         world_arg,
         interlace_arg,
         set_resource_path,
+        set_plugin_path,
+        set_interlace_env,
         gazebo,
         bridge_node,
         deskew_node,

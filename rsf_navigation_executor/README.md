@@ -30,10 +30,17 @@ emcl2 の尤度場が系統的に狂う。地面高の起伏があるため、�
 
 ## 2. 自己位置推定とナビゲーション
 
-**前提**: この launch は TF を配信しない。先に `rsf_bringup` を起動しておくこと。
+**前提**: これらの launch は TF を配信しない。先に `rsf_bringup` を起動しておくこと。
 `robot_state_publisher`（`base_footprint` 以下の TF）と `tf_odom_to_footprint`
 （`rsf_odom` -> `base_footprint`）が無いと、コストマップが
 `Invalid frame ID "rsf_odom"` で止まりロボットは動かない。
+
+launch は 2 段構成にしてある。
+
+| launch | 起動するもの | 用途 |
+|---|---|---|
+| `localization.launch.py` | `pointcloud_to_laserscan` / `map_server` / `emcl2` / `lifecycle_manager_localization` | 自己位置推定だけ。ウェイポイント記録はこれで足りる |
+| `navigation.launch.py` | 上を include + nav2 一式 | 自律走行 |
 
 ```bash
 ros2 launch rsf_simulator rsf_simulator.launch.py   # 端末1
@@ -41,13 +48,15 @@ ros2 launch rsf_bringup rsf_bringup.launch.py       # 端末2
 ros2 launch rsf_navigation_executor navigation.launch.py   # 端末3
 ```
 
-`pointcloud_to_laserscan` / `map_server` / `emcl2` / `nav2` / `lifecycle_manager` が起動する。
+引数は両方の launch で共通で、`navigation.launch.py` に渡した値はそのまま
+`localization.launch.py` に転送される。
 
 | 引数 | 既定値 |
 |---|---|
 | `map` | `maps/tsudanuma2-3.yaml` |
 | `use_sim_time` | `true` |
 | `autostart` | `true` |
+| `use_rviz` | `true`（`navigation.launch.py` のみ） |
 
 別の地図を使う場合:
 
@@ -58,31 +67,79 @@ ros2 launch rsf_navigation_executor navigation.launch.py \
 
 起動後、RViz の 2D Pose Estimate で初期位置を与える。
 
-## 3. ウェイポイントを記録する
+### RViz
 
-`navigation.launch.py` を起動した状態で:
+`navigation.launch.py` は `rviz/navigation.rviz` を読んだ RViz を一緒に起動する。
+
+| 表示 | トピック | 既定 |
+|---|---|---|
+| Map | `/map` | on |
+| LaserScan | `/scan` | on |
+| Hokuyo3D PointCloud | `/rsf/hokuyo_cloud2` | off（重い） |
+| MCL Particles | `/particlecloud` | on |
+| MCL Pose | `/mcl_pose` | on |
+| Waypoints | `/waypoint_navigator/waypoints` | on |
+| Global Costmap / Global Plan / Global Footprint | `/global_costmap/costmap`, `/plan`, `/global_costmap/published_footprint` | on |
+| Local Costmap / Local Footprint | `/local_costmap/costmap`, `/local_costmap/published_footprint` | on |
+| MPPI Transformed Plan / MPPI Trajectories | `/transformed_global_plan`, `/trajectories` | off |
+| RobotModel / TF / Wheel Odometry | `/robot_description`, `/tf`, `/rsf/rsf_odom` | RobotModel のみ on |
+
+MPPI の 2 つは `nav2_params.yaml` の `FollowPath.visualize` を `true` にしないと配信されない。
+コントローラを調整するときだけ有効にすること。
+
+`rsf_bringup` も RViz を起動するため、両方立てるとノード名 `rviz2` が衝突する。
+どちらか片方にすること。
 
 ```bash
-ros2 launch rsf_navigation_executor waypoint_recording.launch.py
+ros2 launch rsf_navigation_executor navigation.launch.py use_rviz:=false
 ```
 
-手動操縦で走らせ、通過させたい地点で以下を呼ぶ。`mcl_pose` の現在推定値が記録される。
+## 3. ウェイポイントを記録する
+
+記録に必要なのは `mcl_pose` だけなので、nav2 は起動しなくてよい。
 
 ```bash
-ros2 service call /waypoint_recorder/record std_srvs/srv/Trigger   # 現在地を1点追加
-ros2 service call /waypoint_recorder/save   std_srvs/srv/Trigger   # ファイルに書き出す
+ros2 launch rsf_navigation_executor localization.launch.py     # 端末3
+ros2 launch rsf_navigation_executor waypoint_recording.launch.py   # 端末4
+```
+
+記録される座標は `map` 系なので、**先に初期位置を合わせておくこと**。
+起動すると `record_interval` 秒ごとに `mcl_pose` の現在推定値が自動で 1 点追加される。
+ただし直前の記録点から `min_distance` 以上離れていなければ捨てるので、
+信号待ちなどで停車している間に同じ座標が積み上がることはない。
+
+手動操縦でコースを一周し、走り終えたら書き出す。コマンドは起動時にログへ出る。
+
+```
+[waypoint_recorder]: save with: ros2 service call /waypoint_recorder/save std_srvs/srv/Trigger
 ```
 
 | 引数 | 既定値 |
 |---|---|
 | `output_file` | `recorded_waypoints.yaml`（launch を叩いたカレントディレクトリ） |
+| `record_interval` | `5.0`（秒） |
+| `min_distance` | `0.5`（m） |
 
-書き出したファイルは `config/` にコピーして git 管理下に置くこと。
+`mcl_pose` が届くまでの間は `no pose received yet` を出して記録をスキップする。
+
+```bash
+ros2 launch rsf_navigation_executor waypoint_recording.launch.py \
+  record_interval:=2.0 min_distance:=1.0
+```
+
+`min_distance` は実行中でも変えられる。
+
+```bash
+ros2 param set /waypoint_recorder min_distance 1.5
+```
+
+書き出したファイルは `waypoints/` に置いて git 管理下に置くこと。
+地図と対応が付くよう `<地図名>_wp.yaml` で揃える。
 `output_file` に絶対パスを渡せば直接そこへ書ける。
 
 ```bash
 ros2 launch rsf_navigation_executor waypoint_recording.launch.py \
-  output_file:=$HOME/rsf_ws/src/rsf_navigation_executor/config/course_a.yaml
+  output_file:=$HOME/rsf_ws/src/rsf_navigation_executor/waypoints/tsudanuma_wp.yaml
 ```
 
 ## 4. ウェイポイント走行
@@ -99,9 +156,16 @@ ros2 service call /waypoint_navigator/resume std_srvs/srv/Trigger
 
 | 引数 | 既定値 |
 |---|---|
-| `waypoints_file` | `config/waypoints.yaml` |
+| `waypoints_file` | `waypoints/tsudanuma2-3_wp.yaml`（既定の地図 `maps/tsudanuma2-3.yaml` と対） |
 
-### waypoints.yaml の書式
+別のコースを走る場合:
+
+```bash
+ros2 launch rsf_navigation_executor waypoint_navigation.launch.py \
+  waypoints_file:=$(ros2 pkg prefix --share rsf_navigation_executor)/waypoints/<名前>_wp.yaml
+```
+
+### waypoints yaml の書式
 
 ```yaml
 loop: false

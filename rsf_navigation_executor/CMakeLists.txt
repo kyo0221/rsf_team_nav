@@ -4,7 +4,7 @@ project(rsf_navigation_executor)
 find_package(ament_cmake REQUIRED)
 
 install(
-  DIRECTORY launch config maps behavior_trees
+  DIRECTORY launch config maps behavior_trees rviz waypoints
   DESTINATION share/${PROJECT_NAME}
 )
 

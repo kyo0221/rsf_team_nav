@@ -4,10 +4,12 @@ import math
 import rclpy
 import yaml
 from action_msgs.msg import GoalStatus
+from geometry_msgs.msg import Pose, PoseArray
 from nav2_msgs.action import NavigateToPose
 from nav2_msgs.msg import SpeedLimit
 from rclpy.action import ActionClient
 from rclpy.node import Node
+from rclpy.qos import DurabilityPolicy, QoSProfile
 from std_srvs.srv import Trigger
 
 SERVER_WAIT_TIMEOUT = 5.0
@@ -37,9 +39,31 @@ class WaypointNavigator(Node):
 
         self.action_client = ActionClient(self, NavigateToPose, 'navigate_to_pose')
         self.speed_limit_pub = self.create_publisher(SpeedLimit, 'speed_limit', 10)
+        # RViz を後から起動しても見えるように latch する。
+        # /waypoints は nav2_rviz_plugins の Navigation 2 パネルが
+        # MarkerArray で使うので、ノード名前空間の下に置く
+        self.waypoints_pub = self.create_publisher(
+            PoseArray, '~/waypoints',
+            QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL))
         self.create_service(Trigger, '~/start', self.on_start)
         self.create_service(Trigger, '~/pause', self.on_pause)
         self.create_service(Trigger, '~/resume', self.on_resume)
+
+        self.waypoints_pub.publish(self.waypoints_message())
+
+    def waypoints_message(self):
+        msg = PoseArray()
+        msg.header.frame_id = 'map'
+        msg.header.stamp = self.get_clock().now().to_msg()
+        for wp in self.waypoints:
+            qz, qw = yaw_to_quaternion(float(wp.get('yaw', 0.0)))
+            pose = Pose()
+            pose.position.x = float(wp['x'])
+            pose.position.y = float(wp['y'])
+            pose.orientation.z = qz
+            pose.orientation.w = qw
+            msg.poses.append(pose)
+        return msg
 
     def on_start(self, request, response):
         if self.running:

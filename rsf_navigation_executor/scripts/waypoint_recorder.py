@@ -18,34 +18,43 @@ class WaypointRecorder(Node):
     def __init__(self):
         super().__init__('waypoint_recorder')
         self.declare_parameter('output_file', '')
+        self.declare_parameter('record_interval', 5.0)
+        self.declare_parameter('min_distance', 0.5)
 
         self.latest_pose = None
         self.waypoints = []
 
         self.create_subscription(
             PoseWithCovarianceStamped, 'mcl_pose', self.on_pose, 10)
-        self.create_service(Trigger, '~/record', self.on_record)
+        self.create_timer(
+            self.get_parameter('record_interval').value, self.on_record_timer)
         self.create_service(Trigger, '~/save', self.on_save)
+
+        self.get_logger().info(
+            'save with: ros2 service call '
+            f'{self.resolve_service_name("~/save")} std_srvs/srv/Trigger')
 
     def on_pose(self, msg):
         self.latest_pose = msg.pose.pose
 
-    def on_record(self, request, response):
+    def on_record_timer(self):
         if self.latest_pose is None:
-            response.success = False
-            response.message = 'no pose received yet'
-            return response
+            self.get_logger().warn('no pose received yet')
+            return
 
-        yaw = quaternion_to_yaw(self.latest_pose.orientation)
+        x = self.latest_pose.position.x
+        y = self.latest_pose.position.y
+        if self.waypoints:
+            last = self.waypoints[-1]
+            if math.hypot(x - last['x'], y - last['y']) < self.get_parameter('min_distance').value:
+                return
+
         self.waypoints.append({
-            'x': round(self.latest_pose.position.x, 3),
-            'y': round(self.latest_pose.position.y, 3),
-            'yaw': round(yaw, 3),
+            'x': round(x, 3),
+            'y': round(y, 3),
+            'yaw': round(quaternion_to_yaw(self.latest_pose.orientation), 3),
         })
-        response.success = True
-        response.message = f'recorded waypoint {len(self.waypoints) - 1}'
-        self.get_logger().info(response.message)
-        return response
+        self.get_logger().info(f'recorded waypoint {len(self.waypoints) - 1}')
 
     def on_save(self, request, response):
         if not self.waypoints:

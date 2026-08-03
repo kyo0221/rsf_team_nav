@@ -9,7 +9,8 @@ def generate_launch_description():
     waypoints_file_arg = DeclareLaunchArgument(
         'waypoints_file',
         default_value=PathJoinSubstitution(
-            [FindPackageShare('rsf_navigation_executor'), 'config', 'waypoints.yaml']
+            [FindPackageShare('rsf_navigation_executor'),
+             'waypoints', 'tsudanuma2-3_wp.yaml']
         ),
     )
     use_sim_time_arg = DeclareLaunchArgument('use_sim_time', default_value='true')

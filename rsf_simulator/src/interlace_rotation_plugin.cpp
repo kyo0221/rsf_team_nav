@@ -53,9 +53,8 @@ public:
     if (info.paused || joint_ == ignition::gazebo::kNullEntity || interlace_ <= 1) {
       return;
     }
-    const double t = std::chrono::duration<double>(info.simTime).count();
-    const int index = static_cast<int>(
-      (static_cast<long long>(std::floor(t / kScanPeriod)) + 1) % interlace_);
+    const auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(info.simTime).count();
+    const int index = static_cast<int>((ns / 50000000LL) % interlace_);
     const double angle = index * kHorizontalPitch / interlace_;
     auto position =
       ecm.Component<ignition::gazebo::components::JointPositionReset>(joint_);

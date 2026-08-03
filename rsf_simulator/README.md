@@ -38,13 +38,25 @@ ros2 launch rsf_simulator rsf_simulator.launch.py world:=tsudanuma
 
 ## ワールドを追加するときの注意
 
-`gpu_lidar` の描画には Sensors システムが必要で、これは **world 直下**に置く。
+world ファイルには、環境そのものとは別に **本機を出すための追加**が必要である。
+`worlds/tsudanuma.sdf` では末尾にコメントで囲んだブロックとしてまとめてある。
 
 ```xml
-<plugin filename="libignition-gazebo-sensors-system.so" name="ignition::gazebo::systems::Sensors">
-  <render_engine>ogre2</render_engine>
-</plugin>
+    <!-- ここから下は rsf_simulator 固有の追加 -->
+    <plugin filename="libignition-gazebo-sensors-system.so" name="ignition::gazebo::systems::Sensors">
+      <render_engine>ogre2</render_engine>
+    </plugin>
+    <include>
+      <uri>package://rsf_simulator/models/orne_boxF</uri>
+      <pose>x y z 0 0 yaw</pose>
+    </include>
+  </world>
 ```
 
-ロボットモデル側にも同じ宣言があるとレンダースレッドが 2 本起動し、Gazebo が segfault する。
-`models/orne_boxF/orne_boxF.sdf` からは宣言を外してあるので、world 側に必ず入れること。
+- **Sensors システム**は `gpu_lidar` の描画に必要で、world 直下に置く。
+  `models/orne_boxF/orne_boxF.sdf` 側では宣言していないので、world 側に必ず入れること。
+  両方に宣言があるとレンダースレッドが 2 本起動して Gazebo が segfault する
+- **ロボットの `<include>`** は自由空間の座標に置く。地面に埋まらないよう z は少し上げる
+
+外部ツールで生成した環境を持ち込む場合、生成物にはロボットが含まれない。
+上記ブロックを足すのは本パッケージの責務であり、環境を作り直したときは足し直す。

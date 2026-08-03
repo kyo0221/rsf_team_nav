@@ -11,9 +11,6 @@
     <plugin filename="libignition-gazebo-scene-broadcaster-system.so" name="ignition::gazebo::systems::SceneBroadcaster" />
     <plugin filename="libignition-gazebo-imu-system.so" name="ignition::gazebo::systems::Imu" />
     <plugin filename="libignition-gazebo-navsat-system.so" name="ignition::gazebo::systems::NavSat" />
-    <plugin filename="libignition-gazebo-sensors-system.so" name="ignition::gazebo::systems::Sensors">
-      <render_engine>ogre2</render_engine>
-    </plugin>
     <light type="directional" name="sun">
       <cast_shadows>0</cast_shadows>
       <pose>0 0 10 0 0 0</pose>
@@ -125751,6 +125748,20 @@
         </visual>
       </link>
     </model>
+    <!-- ================================================================
+         ここから下は rsf_simulator 固有の追加。
+         この world の環境部分（地面・壁・物理・ライト）は map2sdf の出力
+         そのままで、ロボットは含まれていない。以下の 2 つを足すことで
+         本機を出している。ワールドを作り直したときは足し直すこと。
+
+         1. Sensors システム: orne_boxF の gpu_lidar を描画するために必要。
+            orne_boxF.sdf 側では宣言していない（二重宣言すると Gazebo が
+            レンダースレッドを 2 本起動して segfault する）。
+         2. ロボットの include: 初期位置は地図座標。
+         ================================================================ -->
+    <plugin filename="libignition-gazebo-sensors-system.so" name="ignition::gazebo::systems::Sensors">
+      <render_engine>ogre2</render_engine>
+    </plugin>
     <include>
       <uri>package://rsf_simulator/models/orne_boxF</uri>
       <pose>-42.925 -105.075 0.15 0 0 0</pose>

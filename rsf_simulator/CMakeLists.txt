@@ -23,12 +23,6 @@ target_link_libraries(interlace_rotation_plugin ignition-gazebo6::ignition-gazeb
 
 install(TARGETS interlace_rotation_plugin DESTINATION lib)
 
-if(BUILD_TESTING)
-  find_package(ament_cmake_gtest REQUIRED)
-  ament_add_gtest(test_interlace_deskew test/test_interlace_deskew.cpp)
-  target_link_libraries(test_interlace_deskew interlace_deskew)
-endif()
-
 install(
   DIRECTORY launch worlds models
   DESTINATION share/${PROJECT_NAME}

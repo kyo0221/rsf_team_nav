@@ -31,5 +31,6 @@ capture/
 # TestCode
 test
 
-# 設計メモ（ローカル参照用、git管理外）
+# 設計メモ・作業指示（ローカル参照用、git管理外）
 docs/
+CLAUDE.md

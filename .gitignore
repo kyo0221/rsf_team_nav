@@ -30,3 +30,6 @@ capture/
 
 # TestCode
 test
+
+# 設計メモ（ローカル参照用、git管理外）
+docs/

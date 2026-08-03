@@ -11,4 +11,3 @@ pointcloud_to_laserscan:
     range_min: 0.1
     range_max: 30.0
     use_inf: true
-    use_sim_time: true

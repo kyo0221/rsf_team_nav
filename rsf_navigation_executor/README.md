@@ -75,7 +75,15 @@ ros2 service call /waypoint_recorder/save   std_srvs/srv/Trigger   # ファイ�
 
 | 引数 | 既定値 |
 |---|---|
-| `output_file` | `config/recorded_waypoints.yaml` |
+| `output_file` | `recorded_waypoints.yaml`（launch を叩いたカレントディレクトリ） |
+
+書き出したファイルは `config/` にコピーして git 管理下に置くこと。
+`output_file` に絶対パスを渡せば直接そこへ書ける。
+
+```bash
+ros2 launch rsf_navigation_executor waypoint_recording.launch.py \
+  output_file:=$HOME/rsf_ws/src/rsf_navigation_executor/config/course_a.yaml
+```
 
 ## 4. ウェイポイント走行
 
@@ -107,7 +115,7 @@ waypoints:
 |---|---|
 | `x`, `y`, `yaw` | 目標姿勢（map 座標系、yaw はラジアン） |
 | `speed_limit` | 次の点までの速度上限（省略可） |
-| `checkpoint` | `true` なら到達必須。省略時はスキップ可 |
+| `checkpoint` | `true` なら到達必須。到達すると停止して `resume` を待ち、失敗すると同じ点を再試行する。省略時は失敗してもスキップして次へ進む |
 | `loop` | `true` で最終点から先頭に戻る |
 
 ## 設定ファイル

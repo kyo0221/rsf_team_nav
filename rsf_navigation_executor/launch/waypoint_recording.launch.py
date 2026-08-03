@@ -1,16 +1,14 @@
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
-from launch_ros.substitutions import FindPackageShare
 
 
 def generate_launch_description():
+    # install 空間へ書くと再ビルドで消えるため、既定は起動時のカレントディレクトリ
     output_file_arg = DeclareLaunchArgument(
         'output_file',
-        default_value=PathJoinSubstitution(
-            [FindPackageShare('rsf_navigation_executor'), 'config', 'recorded_waypoints.yaml']
-        ),
+        default_value='recorded_waypoints.yaml',
     )
     use_sim_time_arg = DeclareLaunchArgument('use_sim_time', default_value='true')
 

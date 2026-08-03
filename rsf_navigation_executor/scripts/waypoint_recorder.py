@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import math
+import os
 
 import rclpy
 import yaml
@@ -47,14 +48,20 @@ class WaypointRecorder(Node):
         return response
 
     def on_save(self, request, response):
-        output_file = self.get_parameter('output_file').value
         if not self.waypoints:
             response.success = False
             response.message = 'no waypoints recorded'
             return response
 
-        with open(output_file, 'w') as f:
-            yaml.safe_dump({'loop': False, 'waypoints': self.waypoints}, f, sort_keys=False)
+        output_file = os.path.abspath(self.get_parameter('output_file').value)
+        try:
+            with open(output_file, 'w') as f:
+                yaml.safe_dump({'loop': False, 'waypoints': self.waypoints}, f, sort_keys=False)
+        except OSError as error:
+            response.success = False
+            response.message = f'failed to write {output_file}: {error}'
+            self.get_logger().error(response.message)
+            return response
 
         response.success = True
         response.message = f'saved {len(self.waypoints)} waypoints to {output_file}'
@@ -69,9 +76,11 @@ def main():
         rclpy.spin(node)
     except KeyboardInterrupt:
         pass
-    finally:
-        node.destroy_node()
-        rclpy.shutdown()
+    except Exception:
+        # SIGINT を受けた rclpy が context を落とすと spin が内部例外で抜ける
+        if rclpy.ok():
+            raise
+    rclpy.try_shutdown()
 
 
 if __name__ == '__main__':

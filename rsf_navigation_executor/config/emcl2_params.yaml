@@ -22,4 +22,3 @@ emcl2_node:
     extraction_rate: 0.1
     range_threshold: 0.3
     sensor_reset: true
-    use_sim_time: true

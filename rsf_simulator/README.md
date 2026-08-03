@@ -66,25 +66,42 @@ world ファイルには、環境そのものとは別に **本機を出すた�
 world に `<gui>` を書くと、既定の `gui.config` を**置き換える**（マージではない）。
 そのため 3D ビューだけでなく操作パネル類もすべて world 側に並べる必要がある。
 
-シーンプラグインは公式推奨の `MinimalScene` を使う。`MinimalScene` は描画だけを担うので、
-[公式の移行手順](https://github.com/gazebosim/gz-sim/blob/gz-sim8/Migration.md)どおり
-以下を併記しないと**何も表示されず視点も動かない**。
+シーンプラグインは公式推奨の `MinimalScene` を使う
+（[公式の移行手順](https://github.com/gazebosim/gz-sim/blob/gz-sim8/Migration.md)）。
+両 world で以下の 6 個に揃えてある。
 
-| プラグイン | 役割 |
-|---|---|
-| `MinimalScene` | 描画本体。`<engine>` `<camera_pose>` などはここ |
-| `GzSceneManager` | サーバ側のエンティティをシーンへ反映する |
-| `InteractiveViewControl` | マウスでの視点操作 |
-| `CameraTracking` | Move to / Follow / カメラ位置の設定 |
-| `EntityContextMenuPlugin` | 右クリックメニュー |
-| `SelectEntities` | クリックでの選択 |
-| `MarkerManager` | マーカー表示 |
-| `Spawn` | GUI からのエンティティ配置 |
-| `VisualizationCapabilities` | 衝突形状・慣性・関節の表示 |
+| プラグイン | 役割 | 省略すると |
+|---|---|---|
+| `MinimalScene` | 描画本体。`<engine>` `<camera_pose>` はここ | 3D ビューが出ない |
+| `GzSceneManager` | サーバ側のエンティティをシーンへ反映 | **何も映らない** |
+| `InteractiveViewControl` | マウスでの視点操作 | **視点が動かせない** |
+| `WorldControl` | 再生 / 一時停止 / ステップ | 操作パネルが出ない |
+| `WorldStats` | sim time / RTF | 時刻表示が出ない |
+| `VisualizeLidar` | `/rsf/hokuyo3d` の点群表示 | LiDAR が可視化されない |
 
-`WorldControl`（再生/一時停止）と `WorldStats`（sim time / RTF）の `anchors target` は
-プラグインの `name` ではなく `<title>` を参照するので、`MinimalScene` 側に
-`<title>3D View</title>` を書いておくこと。
+`GzSceneManager` と `InteractiveViewControl` は UI を持たないが、プロパティを書かないと
+gz-gui が既定サイズのカードを作って画面右に並んでしまう。既定 `gui.config` と同じく
+**5x5px の非表示フローティング**にしてある。
+
+```xml
+<ignition-gui>
+  <property key="resizable" type="bool">false</property>
+  <property key="width" type="double">5</property>
+  <property key="height" type="double">5</property>
+  <property key="state" type="string">floating</property>
+  <property key="showTitleBar" type="bool">false</property>
+</ignition-gui>
+```
+
+`WorldControl` / `WorldStats` の `anchors target` はプラグインの `name` ではなく
+`<title>` を参照するので、`MinimalScene` 側に `<title>3D View</title>` を書いておくこと。
+
+公式のコンパニオン一覧には他に `CameraTracking`（Follow / Move to）、
+`EntityContextMenuPlugin`（右クリックメニュー）、`SelectEntities`、`MarkerManager`、
+`Spawn`、`VisualizationCapabilities`（衝突形状の表示）がある。いずれも必須ではないので
+外してあるが、GUI 上でロボットを追従したい場合は `CameraTracking` と
+`EntityContextMenuPlugin` と `SelectEntities` の 3 つを戻す必要がある
+（右クリックメニュー経由で Follow を呼ぶため）。
 
 ## Ubuntu 24.04 (ROS 2 Jazzy / Gazebo Harmonic) へ移行するとき
 

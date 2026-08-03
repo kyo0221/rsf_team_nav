@@ -4,11 +4,13 @@
     
     <gui fullscreen="0">
 
-      
+      <!-- 公式推奨の MinimalScene 構成。GzSceneManager が無いとエンティティが
+           シーンに入らず何も映らず、InteractiveViewControl が無いと視点が動かない。
+           この 2 つは 5x5px の非表示カードとして置く（既定 gui.config と同じ手法）。 -->
       <plugin filename="MinimalScene" name="3D View">
         <ignition-gui>
           <title>3D View</title>
-          <property type="bool" key="showTitleBar">true</property>
+          <property type="bool" key="showTitleBar">false</property>
           <property type="string" key="state">docked</property>
         </ignition-gui>
         <engine>ogre2</engine>
@@ -18,16 +20,26 @@
         <camera_pose>1 -1 1 0 0 2.4</camera_pose>
       </plugin>
 
-      <plugin filename="GzSceneManager" name="Scene Manager"/>
-      <plugin filename="EntityContextMenuPlugin" name="Entity context menu"/>
-      <plugin filename="InteractiveViewControl" name="Interactive view control"/>
-      <plugin filename="CameraTracking" name="Camera Tracking"/>
-      <plugin filename="MarkerManager" name="Marker manager"/>
-      <plugin filename="SelectEntities" name="Select Entities"/>
-      <plugin filename="Spawn" name="Spawn Entities"/>
-      <plugin filename="VisualizationCapabilities" name="Visualization Capabilities"/>
+      <plugin filename="GzSceneManager" name="Scene Manager">
+        <ignition-gui>
+          <property key="resizable" type="bool">false</property>
+          <property key="width" type="double">5</property>
+          <property key="height" type="double">5</property>
+          <property key="state" type="string">floating</property>
+          <property key="showTitleBar" type="bool">false</property>
+        </ignition-gui>
+      </plugin>
 
-      
+      <plugin filename="InteractiveViewControl" name="Interactive view control">
+        <ignition-gui>
+          <property key="resizable" type="bool">false</property>
+          <property key="width" type="double">5</property>
+          <property key="height" type="double">5</property>
+          <property key="state" type="string">floating</property>
+          <property key="showTitleBar" type="bool">false</property>
+        </ignition-gui>
+      </plugin>
+
       <plugin filename="WorldControl" name="World control">
         <ignition-gui>
           <title>World control</title>
@@ -44,10 +56,8 @@
         </ignition-gui>
         <play_pause>true</play_pause>
         <step>true</step>
-        <start_paused>true</start_paused>
       </plugin>
 
-      
       <plugin filename="WorldStats" name="World stats">
         <ignition-gui>
           <title>World stats</title>
@@ -65,21 +75,8 @@
         <sim_time>true</sim_time>
         <real_time>true</real_time>
         <real_time_factor>true</real_time_factor>
-        <iterations>true</iterations>
       </plugin>
 
-      
-      <plugin filename="EntityTree" name="Entity tree">
-        <ignition-gui>
-          <property key="x" type="double">0</property>
-          <property key="y" type="double">0</property>
-          <property key="width" type="double">400</property>
-          <property key="height" type="double">375</property>
-          <property key="state" type="string">docked_collapsed</property>
-        </ignition-gui>
-      </plugin>
-
-      
       <!-- orne_boxF の gpu_lidar が出す LaserScan。ROS 側の /scan ではなく
            Gazebo transport のトピック名を指定する -->
       <plugin filename="VisualizeLidar" name="VisualizeLidar">
@@ -87,33 +84,6 @@
         <ignition-gui>
           <property key="Visual Type" type="bool">Points</property>
           <property key="state" type="string">docked</property>
-        </ignition-gui>
-      </plugin>
-
-      
-
-      
-      <plugin filename="Teleop" name="Teleop">
-        <topic>/cmd_vel</topic>
-        <ignition-gui>
-          <property key="x" type="double">0</property>
-          <property key="y" type="double">0</property>
-          <property key="width" type="double">400</property>
-          <property key="height" type="double">900</property>
-          <property key="state" type="string">docked</property>
-        </ignition-gui>
-      </plugin>
-
-      
-      <plugin filename="Shapes" name="Shapes">
-        <ignition-gui>
-          <property type="bool" key="showTitleBar">false</property>
-          <property key="x" type="double">250</property>
-          <property key="y" type="double">0</property>
-          <property key="width" type="double">150</property>
-          <property key="height" type="double">50</property>
-          <property key="state" type="string">floating</property>
-          <property key="cardBackground" type="string">#666666</property>
         </ignition-gui>
       </plugin>
 

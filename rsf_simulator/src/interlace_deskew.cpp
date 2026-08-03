@@ -4,19 +4,15 @@
 
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 
+#include "rsf_simulator/interlace_constants.hpp"
+
 namespace rsf_simulator
 {
 
-namespace
-{
-constexpr double kScanPeriod = 0.05;
-constexpr double kHorizontalPitch = 0.10471975511965977;
-}
-
 int interlace_frame_index(const builtin_interfaces::msg::Time & stamp, int interlace)
 {
-  const double t = stamp.sec + stamp.nanosec * 1e-9;
-  return static_cast<int>(std::llround(t / kScanPeriod) % interlace);
+  const long long ns = stamp.sec * 1000000000LL + stamp.nanosec;
+  return static_cast<int>((ns / kScanPeriodNs) % interlace);
 }
 
 double interlace_offset_angle(int frame_index, int interlace)

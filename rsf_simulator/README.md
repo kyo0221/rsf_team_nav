@@ -32,7 +32,8 @@ ros2 launch rsf_simulator rsf_simulator.launch.py world:=tsudanuma
 | ROS トピック | 向き | 内容 |
 |---|---|---|
 | `/clock` | 出 | シミュレーション時刻 |
-| `/rsf/hokuyo_cloud2` | 出 | 3D LiDAR の点群 |
+| `/rsf/hokuyo3d/points` | 出 | 3D LiDAR の生点群（補正前、センサリンクの回転を含む） |
+| `/rsf/hokuyo_cloud2` | 出 | `interlace_deskew_node` が発行するインターレース補正後の点群 |
 | `/rsf/imu` | 出 | IMU |
 | `/rsf/nav_sat_fix` | 出 | GNSS |
 | `/rsf/rsf_odom` | 出 | オドメトリ |

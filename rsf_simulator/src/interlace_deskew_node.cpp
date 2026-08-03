@@ -17,6 +17,7 @@ InterlaceDeskewNode::InterlaceDeskewNode()
     RCLCPP_WARN(get_logger(), "interlace %d out of range [1, 20], clamped", interlace_);
     interlace_ = std::clamp(interlace_, 1, 20);
   }
+  RCLCPP_INFO(get_logger(), "interlace=%d", interlace_);
   publisher_ = create_publisher<sensor_msgs::msg::PointCloud2>(
     "/rsf/hokuyo_cloud2", rclcpp::QoS(10));
   subscription_ = create_subscription<sensor_msgs::msg::PointCloud2>(

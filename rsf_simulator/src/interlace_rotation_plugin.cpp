@@ -12,6 +12,8 @@
 #include <ignition/gazebo/components/JointVelocityReset.hh>
 #include <ignition/plugin/Register.hh>
 
+#include "rsf_simulator/interlace_constants.hpp"
+
 namespace rsf_simulator
 {
 
@@ -44,17 +46,18 @@ public:
               << " out of range [1, 20], clamped\n";
       interlace_ = std::clamp(interlace_, 1, 20);
     }
+    ignmsg << "InterlaceRotationPlugin: interlace=" << interlace_ << "\n";
   }
 
   void PreUpdate(
     const ignition::gazebo::UpdateInfo & info,
     ignition::gazebo::EntityComponentManager & ecm) override
   {
-    if (info.paused || joint_ == ignition::gazebo::kNullEntity || interlace_ <= 1) {
+    if (info.paused || joint_ == ignition::gazebo::kNullEntity) {
       return;
     }
     const auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(info.simTime).count();
-    const int index = static_cast<int>((ns / 50000000LL) % interlace_);
+    const int index = static_cast<int>((ns / kScanPeriodNs) % interlace_);
     const double angle = index * kHorizontalPitch / interlace_;
     auto position =
       ecm.Component<ignition::gazebo::components::JointPositionReset>(joint_);
@@ -75,9 +78,6 @@ public:
   }
 
 private:
-  static constexpr double kScanPeriod = 0.05;
-  static constexpr double kHorizontalPitch = 0.10471975511965977;
-
   ignition::gazebo::Entity joint_{ignition::gazebo::kNullEntity};
   int interlace_{1};
 };

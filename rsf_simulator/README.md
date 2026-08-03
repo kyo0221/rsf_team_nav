@@ -60,3 +60,43 @@ world ファイルには、環境そのものとは別に **本機を出すた�
 
 外部ツールで生成した環境を持ち込む場合、生成物にはロボットが含まれない。
 上記ブロックを足すのは本パッケージの責務であり、環境を作り直したときは足し直す。
+
+## GUI 設定
+
+world に `<gui>` を書くと、既定の `gui.config` を**置き換える**（マージではない）。
+そのため 3D ビューだけでなく操作パネル類もすべて world 側に並べる必要がある。
+
+シーンプラグインは公式推奨の `MinimalScene` を使う。`MinimalScene` は描画だけを担うので、
+[公式の移行手順](https://github.com/gazebosim/gz-sim/blob/gz-sim8/Migration.md)どおり
+以下を併記しないと**何も表示されず視点も動かない**。
+
+| プラグイン | 役割 |
+|---|---|
+| `MinimalScene` | 描画本体。`<engine>` `<camera_pose>` などはここ |
+| `GzSceneManager` | サーバ側のエンティティをシーンへ反映する |
+| `InteractiveViewControl` | マウスでの視点操作 |
+| `CameraTracking` | Move to / Follow / カメラ位置の設定 |
+| `EntityContextMenuPlugin` | 右クリックメニュー |
+| `SelectEntities` | クリックでの選択 |
+| `MarkerManager` | マーカー表示 |
+| `Spawn` | GUI からのエンティティ配置 |
+| `VisualizationCapabilities` | 衝突形状・慣性・関節の表示 |
+
+`WorldControl`（再生/一時停止）と `WorldStats`（sim time / RTF）の `anchors target` は
+プラグインの `name` ではなく `<title>` を参照するので、`MinimalScene` 側に
+`<title>3D View</title>` を書いておくこと。
+
+## Ubuntu 24.04 (ROS 2 Jazzy / Gazebo Harmonic) へ移行するとき
+
+GUI プラグインのファイル名は Harmonic でも同じなので、上記の `<gui>` ブロックは
+そのまま使える。一方で**システムプラグインの記述は書き換えが必要**である。
+
+| Fortress（現在） | Harmonic |
+|---|---|
+| `filename="libignition-gazebo-physics-system.so"` | `filename="gz-sim-physics-system"` |
+| `name="ignition::gazebo::systems::Physics"` | `name="gz::sim::systems::Physics"` |
+
+Physics / UserCommands / SceneBroadcaster / Sensors / Imu / NavSat すべてが対象。
+`<ignition-gui>` タグも `<gz-gui>` へ変わる可能性が高いが、移行時に実機で確認すること。
+`GzScene3D` は Garden 以降で削除済みなので、`MinimalScene` にしてある本構成なら
+この点は影響を受けない。

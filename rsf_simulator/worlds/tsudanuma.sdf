@@ -125748,23 +125748,65 @@
         </visual>
       </link>
     </model>
-    <!-- ================================================================
-         ここから下は rsf_simulator 固有の追加。
-         この world の環境部分（地面・壁・物理・ライト）は map2sdf の出力
-         そのままで、ロボットは含まれていない。以下の 2 つを足すことで
-         本機を出している。ワールドを作り直したときは足し直すこと。
-
-         1. Sensors システム: orne_boxF の gpu_lidar を描画するために必要。
-            orne_boxF.sdf 側では宣言していない（二重宣言すると Gazebo が
-            レンダースレッドを 2 本起動して segfault する）。
-         2. ロボットの include: 初期位置は地図座標。
-         ================================================================ -->
+    <!-- ===original=== -->
     <plugin filename="libignition-gazebo-sensors-system.so" name="ignition::gazebo::systems::Sensors">
       <render_engine>ogre2</render_engine>
     </plugin>
     <include>
       <uri>package://rsf_simulator/models/orne_boxF</uri>
-      <pose>-42.925 -105.075 0.15 0 0 0</pose>
+      <pose>-80.925 -120.075 0.15 0 0 0</pose>
     </include>
+    <!-- カメラをロボット後方から見下ろす位置に置く。
+         <gui> は既定の gui.config を置き換えるので操作パネルもここに並べる -->
+    <gui fullscreen="0">
+      <plugin filename="MinimalScene" name="3D View">
+        <ignition-gui>
+          <title>3D View</title>
+          <property type="string" key="state">docked</property>
+        </ignition-gui>
+        <engine>ogre2</engine>
+        <scene>scene</scene>
+        <ambient_light>0.4 0.4 0.4</ambient_light>
+        <background_color>0.8 0.8 0.8</background_color>
+        <camera_pose>-88 -120 5 0 0.6 0</camera_pose>
+      </plugin>
+
+      <plugin filename="GzSceneManager" name="Scene Manager"/>
+      <plugin filename="EntityContextMenuPlugin" name="Entity context menu"/>
+      <plugin filename="InteractiveViewControl" name="Interactive view control"/>
+      <plugin filename="CameraTracking" name="Camera Tracking"/>
+      <plugin filename="MarkerManager" name="Marker manager"/>
+      <plugin filename="SelectEntities" name="Select Entities"/>
+      <plugin filename="Spawn" name="Spawn Entities"/>
+      <plugin filename="VisualizationCapabilities" name="Visualization Capabilities"/>
+      <plugin filename="WorldControl" name="World control">
+        <ignition-gui>
+          <property type="bool" key="showTitleBar">false</property>
+          <property type="double" key="height">72</property>
+          <property type="double" key="width">121</property>
+          <property type="string" key="state">floating</property>
+          <anchors target="3D View">
+            <line own="left" target="left"/>
+            <line own="bottom" target="bottom"/>
+          </anchors>
+        </ignition-gui>
+        <play_pause>true</play_pause>
+        <step>true</step>
+      </plugin>
+      <plugin filename="WorldStats" name="World stats">
+        <ignition-gui>
+          <property type="bool" key="showTitleBar">false</property>
+          <property type="double" key="height">110</property>
+          <property type="double" key="width">290</property>
+          <property type="string" key="state">floating</property>
+          <anchors target="3D View">
+            <line own="right" target="right"/>
+            <line own="bottom" target="bottom"/>
+          </anchors>
+        </ignition-gui>
+        <sim_time>true</sim_time>
+        <real_time_factor>true</real_time_factor>
+      </plugin>
+    </gui>
   </world>
 </sdf>

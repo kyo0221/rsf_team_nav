@@ -4,38 +4,41 @@ emcl2 による自己位置推定と Navigation2 による経路追従、およ�
 
 3D LiDAR の点群は `pointcloud_to_laserscan` で 2D の `/scan` に変換してから使う。
 
-## 1. 地図を作る（SLAM）
+## 1. 地図を作る
 
-```bash
-ros2 launch rsf_navigation_executor slam.launch.py
+**オンライン SLAM は行わない。** 地図は走行後にオフラインで作る。
+
+```
+rosbag 取得（実機で走行、/rsf/hokuyo_cloud2 と /rsf/imu を記録）
+  -> GLIM で 3D 地図を生成（開発機で実行。車載 PC では回さない）
+  -> 3D 点群を地面基準の高さ帯でスライスして 2D 占有格子へ投影
+  -> maps/<名前>.pgm + maps/<名前>.yaml
 ```
 
-`slam_toolbox` が起動する。手動操縦で走り回ったあと保存する。
+3D から 2D への投影は、`pointcloud_to_laserscan` が切り出す帯
+（LiDAR 基準 ±0.3m = 平地でワールド z 0.05〜0.65m）と一致させる必要がある。
+全高を単純に投影すると、樹冠や庇のようにスキャンが観測しない占有セルが載り、
+emcl2 の尤度場が系統的に狂う。地面高の起伏があるため、絶対高ではなく
+**地面基準**で切ること。
 
-```bash
-ros2 run nav2_map_server map_saver_cli -f maps/<名前>
-```
+**この投影ツールは未実装。** 現在 `maps/` にある `tsudanuma2-3.*` は
+以前 slam_toolbox で作ったもので、これのみが利用可能な地図である。
 
-| 引数 | 既定値 |
-|---|---|
-| `use_sim_time` | `true` |
-
-このlaunchは `slam_toolbox` だけを起動する。`/scan` は含まれないので、別端末で
-`pointcloud_to_laserscan` を起動しておく。
-
-```bash
-ros2 run pointcloud_to_laserscan pointcloud_to_laserscan_node \
-  --ros-args -r __node:=pointcloud_to_laserscan \
-  --params-file $(ros2 pkg prefix --share rsf_navigation_executor)/config/pointcloud_to_laserscan_params.yaml \
-  -r cloud_in:=/rsf/hokuyo_cloud2 -r scan:=/scan
-```
-
-パラメータファイルのキーが `pointcloud_to_laserscan` なので、ノード名を合わせないと設定が読まれない。
+`maps/` に置く 2D 地図は、`rsf_simulator` の world 生成にも使える
+（[map2sdf](https://github.com/kyo0221/map2sdf) で SDF に変換できる）。
+同じ 2D 地図から world と localization 用地図の両方を作れば、両者が原理的にずれない。
 
 ## 2. 自己位置推定とナビゲーション
 
+**前提**: この launch は TF を配信しない。先に `rsf_bringup` を起動しておくこと。
+`robot_state_publisher`（`base_footprint` 以下の TF）と `tf_odom_to_footprint`
+（`rsf_odom` -> `base_footprint`）が無いと、コストマップが
+`Invalid frame ID "rsf_odom"` で止まりロボットは動かない。
+
 ```bash
-ros2 launch rsf_navigation_executor navigation.launch.py
+ros2 launch rsf_simulator rsf_simulator.launch.py   # 端末1
+ros2 launch rsf_bringup rsf_bringup.launch.py       # 端末2
+ros2 launch rsf_navigation_executor navigation.launch.py   # 端末3
 ```
 
 `pointcloud_to_laserscan` / `map_server` / `emcl2` / `nav2` / `lifecycle_manager` が起動する。
@@ -114,4 +117,14 @@ waypoints:
 | `config/emcl2_params.yaml` | 自己位置推定 |
 | `config/nav2_params.yaml` | コストマップ・プランナ・コントローラ |
 | `config/pointcloud_to_laserscan_params.yaml` | 点群から切り出す高さ（LiDAR 基準 ±0.3 m） |
-| `config/slam_toolbox_params.yaml` | SLAM |
+| `behavior_trees/*.xml` | BackUp を外した behavior tree |
+
+### behavior tree を差し替えている理由
+
+本機の LiDAR は水平 FOV が ±105° で後方 150° が未計測なので、`BackUp` リカバリは
+見えていない方向へ後退することになる。そのため nav2 既定の behavior tree から
+`BackUp` を除いたものを `behavior_trees/` に置き、`navigation.launch.py` が
+`RewrittenYaml` で絶対パスに差し替えている。
+
+`bt_navigator` は configure 時に nav_to_pose と nav_through_poses の**両方**を読むため、
+片方だけ差し替えると `Action server backup not available` で起動に失敗する。

@@ -4,7 +4,7 @@ project(rsf_navigation_executor)
 find_package(ament_cmake REQUIRED)
 
 install(
-  DIRECTORY launch config maps
+  DIRECTORY launch config maps behavior_trees
   DESTINATION share/${PROJECT_NAME}
 )
 

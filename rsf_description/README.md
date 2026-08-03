@@ -8,7 +8,15 @@ RSF ロボット（orne_boxF）の URDF/xacro とメッシュ。`robot_state_pub
 ros2 launch rsf_description display.launch.py
 ```
 
-`robot_state_publisher` / `joint_state_publisher` / `rviz2` が起動し、RViz にロボットが表示される。
+`robot_state_publisher` / `joint_state_publisher` が起動し、TF と `/robot_description` を配信する。
+
+**RViz はこの launch では起動しない。** ナビゲーション用の RViz は
+`rsf_navigation_executor` の `navigation.launch.py` が起動する（ノード名 `rviz2` が
+衝突するため一箇所に集約した）。URDF だけ見たいときは手動で開くこと。
+
+```bash
+rviz2 -d $(ros2 pkg prefix --share rsf_description)/rviz/description.rviz
+```
 
 | 引数 | 既定値 | 説明 |
 |---|---|---|

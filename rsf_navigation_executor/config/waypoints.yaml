@@ -1,6 +1,0 @@
-loop: false
-waypoints:
-  - {x: 3.0, y: 0.0, yaw: 0.0, speed_limit: 50.0}
-  - {x: 3.0, y: 3.0, yaw: 1.5708, checkpoint: true}
-  - {x: 0.0, y: 3.0, yaw: 3.14159}
-  - {x: 0.0, y: 0.0, yaw: -1.5708}

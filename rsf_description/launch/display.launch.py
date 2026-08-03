@@ -13,12 +13,6 @@ def generate_launch_description():
         'urdf',
         'orne_boxF.urdf.xacro',
     ])
-    rviz_config_path = PathJoinSubstitution([
-        FindPackageShare('rsf_description'),
-        'rviz',
-        'description.rviz',
-    ])
-
     use_sim_time = LaunchConfiguration('use_sim_time')
     use_joint_state_publisher = LaunchConfiguration('use_joint_state_publisher')
 
@@ -55,13 +49,5 @@ def generate_launch_description():
             output='screen',
             parameters=[{'use_sim_time': use_sim_time}],
             condition=IfCondition(use_joint_state_publisher),
-        ),
-        Node(
-            package='rviz2',
-            executable='rviz2',
-            name='rviz2',
-            output='screen',
-            arguments=['-d', rviz_config_path],
-            parameters=[{'use_sim_time': use_sim_time}],
         ),
     ])

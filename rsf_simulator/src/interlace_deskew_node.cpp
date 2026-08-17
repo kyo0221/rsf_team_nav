@@ -21,7 +21,7 @@ InterlaceDeskewNode::InterlaceDeskewNode()
   publisher_ = create_publisher<sensor_msgs::msg::PointCloud2>(
     "/rsf/hokuyo_cloud2", rclcpp::QoS(10));
   subscription_ = create_subscription<sensor_msgs::msg::PointCloud2>(
-    "/rsf/hokuyo3d/points", rclcpp::SensorDataQoS(),
+    "/rsf/hokuyo3d/points_raw", rclcpp::SensorDataQoS(),
     std::bind(&InterlaceDeskewNode::cloud_callback, this, std::placeholders::_1));
 }
 

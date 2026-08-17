@@ -64,6 +64,7 @@ def generate_launch_description():
             '/cmd_vel@geometry_msgs/msg/Twist]ignition.msgs.Twist',
         ],
         remappings=[
+            ('/rsf/hokuyo3d/points', '/rsf/hokuyo3d/points_raw'),
             ('/odom', '/rsf/rsf_odom'),
         ],
         output='screen',

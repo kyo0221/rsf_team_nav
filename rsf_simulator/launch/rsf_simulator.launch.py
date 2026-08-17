@@ -1,9 +1,9 @@
 import os
 
-from ament_index_python.packages import get_package_prefix, get_package_share_directory
+from ament_index_python.packages import get_package_share_directory
 
 from launch import LaunchDescription
-from launch.actions import AppendEnvironmentVariable, DeclareLaunchArgument, IncludeLaunchDescription, SetEnvironmentVariable
+from launch.actions import AppendEnvironmentVariable, DeclareLaunchArgument, IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
@@ -24,7 +24,9 @@ def generate_launch_description():
     interlace_arg = DeclareLaunchArgument(
         'interlace',
         default_value='1',
-        description='Horizontal interlace factor (1-20)'
+        choices=['1', '2', '4'],
+        description='Horizontal interlace factor. Must divide the oversample factor '
+                    'baked into the lidar scan samples in models/orne_boxF/orne_boxF.sdf'
     )
 
     world_file = PathJoinSubstitution([
@@ -34,15 +36,6 @@ def generate_launch_description():
     set_resource_path = AppendEnvironmentVariable(
         'IGN_GAZEBO_RESOURCE_PATH',
         os.path.dirname(simulator_dir)
-    )
-
-    set_plugin_path = AppendEnvironmentVariable(
-        'IGN_GAZEBO_SYSTEM_PLUGIN_PATH',
-        os.path.join(get_package_prefix('rsf_simulator'), 'lib')
-    )
-
-    set_interlace_env = SetEnvironmentVariable(
-        'RSF_INTERLACE', LaunchConfiguration('interlace')
     )
 
     gazebo = IncludeLaunchDescription(
@@ -70,9 +63,9 @@ def generate_launch_description():
         output='screen',
     )
 
-    deskew_node = Node(
+    decimate_node = Node(
         package='rsf_simulator',
-        executable='interlace_deskew_node',
+        executable='interlace_decimate_node',
         parameters=[{
             'interlace': ParameterValue(LaunchConfiguration('interlace'), value_type=int),
             'use_sim_time': True,
@@ -84,9 +77,7 @@ def generate_launch_description():
         world_arg,
         interlace_arg,
         set_resource_path,
-        set_plugin_path,
-        set_interlace_env,
         gazebo,
         bridge_node,
-        deskew_node,
+        decimate_node,
     ])

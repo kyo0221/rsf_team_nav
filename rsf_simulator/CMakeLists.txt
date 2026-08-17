@@ -5,25 +5,17 @@ find_package(ament_cmake REQUIRED)
 find_package(builtin_interfaces REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(ignition-gazebo6 REQUIRED)
 
-add_library(interlace_deskew STATIC src/interlace_deskew.cpp)
-target_compile_features(interlace_deskew PUBLIC cxx_std_17)
-target_include_directories(interlace_deskew PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
-ament_target_dependencies(interlace_deskew builtin_interfaces sensor_msgs)
+add_library(interlace_decimate STATIC src/interlace_decimate.cpp)
+target_compile_features(interlace_decimate PUBLIC cxx_std_17)
+target_include_directories(interlace_decimate PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+ament_target_dependencies(interlace_decimate builtin_interfaces sensor_msgs)
 
-add_executable(interlace_deskew_node src/interlace_deskew_node.cpp)
-target_link_libraries(interlace_deskew_node interlace_deskew)
-ament_target_dependencies(interlace_deskew_node rclcpp sensor_msgs)
+add_executable(interlace_decimate_node src/interlace_decimate_node.cpp)
+target_link_libraries(interlace_decimate_node interlace_decimate)
+ament_target_dependencies(interlace_decimate_node rclcpp sensor_msgs)
 
-install(TARGETS interlace_deskew_node DESTINATION lib/${PROJECT_NAME})
-
-add_library(interlace_rotation_plugin SHARED src/interlace_rotation_plugin.cpp)
-target_compile_features(interlace_rotation_plugin PUBLIC cxx_std_17)
-target_include_directories(interlace_rotation_plugin PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(interlace_rotation_plugin ignition-gazebo6::ignition-gazebo6)
-
-install(TARGETS interlace_rotation_plugin DESTINATION lib)
+install(TARGETS interlace_decimate_node DESTINATION lib/${PROJECT_NAME})
 
 install(
   DIRECTORY launch worlds models

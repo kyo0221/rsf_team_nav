@@ -5,7 +5,7 @@ namespace rsf_simulator
 {
 
 constexpr long long kScanPeriodNs = 50000000LL;
-constexpr double kHorizontalPitch = 0.10471975511965977;
+constexpr int kAzimuthCount = 36;
 
 }
 

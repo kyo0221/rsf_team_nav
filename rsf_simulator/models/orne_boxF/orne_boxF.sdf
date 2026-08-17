@@ -221,20 +221,10 @@
 
     </link>
 
-    <joint name="rsf_hokuyo3d_joint" type="revolute">
+    <joint name="rsf_hokuyo3d_joint" type="fixed">
       <pose relative_to="rsf_x001_link">0 0 0 0 -0 0</pose>
       <parent>rsf_x001_link</parent>
       <child>rsf_hokuyo3d</child>
-      <axis>
-        <xyz>0 0 1</xyz>
-        <limit>
-          <lower>0</lower>
-          <upper>0.10472</upper>
-        </limit>
-        <dynamics>
-          <damping>0.01</damping>
-        </dynamics>
-      </axis>
     </joint>
 
     <link name="rsf_hokuyo3d">
@@ -257,7 +247,7 @@
         <lidar>
           <scan>
             <horizontal>
-              <samples>36</samples>
+              <samples>141</samples>
               <resolution>1</resolution>
               <min_angle>-1.8326</min_angle>
               <max_angle>1.8326</max_angle>
@@ -527,11 +517,6 @@
         </material>
       </visual>
     </link>
-
-    <plugin name="rsf_simulator::InterlaceRotationPlugin" filename="libinterlace_rotation_plugin.so">
-      <joint_name>rsf_hokuyo3d_joint</joint_name>
-      <interlace>1</interlace>
-    </plugin>
 
     <plugin name="ignition::gazebo::systems::DiffDrive" filename="libignition-gazebo-diff-drive-system.so">
       <left_joint>left_wheel_joint</left_joint>

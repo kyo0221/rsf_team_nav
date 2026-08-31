@@ -7,7 +7,6 @@ from launch.actions import AppendEnvironmentVariable, DeclareLaunchArgument, Inc
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
-from launch_ros.parameter_descriptions import ParameterValue
 
 
 def generate_launch_description():
@@ -19,14 +18,6 @@ def generate_launch_description():
         choices=['tsudanuma2-3', 'tsudanuma'],
         description='World in rsf_simulator/worlds: tsudanuma2-3 (building editor) '
                     'or tsudanuma (generated from an occupancy grid map by map2sdf)'
-    )
-
-    interlace_arg = DeclareLaunchArgument(
-        'interlace',
-        default_value='1',
-        choices=['1', '2', '4'],
-        description='Horizontal interlace factor. Must divide the oversample factor '
-                    'baked into the lidar scan samples in models/orne_boxF/orne_boxF.sdf'
     )
 
     world_file = PathJoinSubstitution([
@@ -57,27 +48,15 @@ def generate_launch_description():
             '/cmd_vel@geometry_msgs/msg/Twist]ignition.msgs.Twist',
         ],
         remappings=[
-            ('/rsf/hokuyo3d/points', '/rsf/hokuyo3d/points_raw'),
+            ('/rsf/hokuyo3d/points', '/rsf/hokuyo_cloud2'),
             ('/odom', '/rsf/rsf_odom'),
         ],
         output='screen',
     )
 
-    decimate_node = Node(
-        package='rsf_simulator',
-        executable='interlace_decimate_node',
-        parameters=[{
-            'interlace': ParameterValue(LaunchConfiguration('interlace'), value_type=int),
-            'use_sim_time': True,
-        }],
-        output='screen',
-    )
-
     return LaunchDescription([
         world_arg,
-        interlace_arg,
         set_resource_path,
         gazebo,
         bridge_node,
-        decimate_node,
     ])

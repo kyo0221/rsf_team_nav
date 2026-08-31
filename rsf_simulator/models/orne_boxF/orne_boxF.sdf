@@ -209,6 +209,7 @@
         <visualize>0</visualize>
         <pose>-0.1 0 -0.02 0 -0 0</pose>
         <ignition_frame_id>rsf_hokuyo3d_imu</ignition_frame_id>
+        <gz_frame_id>rsf_hokuyo3d_imu</gz_frame_id>
       </sensor>
 
       <sensor name="rsf_gnss" type="navsat">
@@ -217,6 +218,7 @@
         <always_on>1</always_on>
         <pose>-0.1 0 0.085 0 -0 0</pose>
         <ignition_frame_id>rsf_gnss</ignition_frame_id>
+        <gz_frame_id>rsf_gnss</gz_frame_id>
       </sensor>
 
     </link>
@@ -247,7 +249,7 @@
         <lidar>
           <scan>
             <horizontal>
-              <samples>141</samples>
+              <samples>36</samples>
               <resolution>1</resolution>
               <min_angle>-1.8326</min_angle>
               <max_angle>1.8326</max_angle>
@@ -268,6 +270,7 @@
         <visualize>true</visualize>
         <pose>0 0 0 0 -0 0</pose>
         <ignition_frame_id>rsf_hokuyo3d</ignition_frame_id>
+        <gz_frame_id>rsf_hokuyo3d</gz_frame_id>
         <always_on>1</always_on>
       </sensor>
     </link>

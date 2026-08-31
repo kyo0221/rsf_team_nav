@@ -202,6 +202,47 @@
         </material>
       </visual>
 
+      <sensor name="rsf_imu" type="imu">
+        <topic>/rsf/imu</topic>
+        <update_rate>1000</update_rate>
+        <always_on>1</always_on>
+        <visualize>0</visualize>
+        <pose>-0.1 0 -0.02 0 -0 0</pose>
+        <ignition_frame_id>rsf_hokuyo3d_imu</ignition_frame_id>
+        <gz_frame_id>rsf_hokuyo3d_imu</gz_frame_id>
+      </sensor>
+
+      <sensor name="rsf_gnss" type="navsat">
+        <topic>/rsf/nav_sat_fix</topic>
+        <update_rate>1</update_rate>
+        <always_on>1</always_on>
+        <pose>-0.1 0 0.085 0 -0 0</pose>
+        <ignition_frame_id>rsf_gnss</ignition_frame_id>
+        <gz_frame_id>rsf_gnss</gz_frame_id>
+      </sensor>
+
+    </link>
+
+    <joint name="rsf_hokuyo3d_joint" type="fixed">
+      <pose relative_to="rsf_x001_link">0 0 0 0 -0 0</pose>
+      <parent>rsf_x001_link</parent>
+      <child>rsf_hokuyo3d</child>
+    </joint>
+
+    <link name="rsf_hokuyo3d">
+      <pose relative_to="rsf_hokuyo3d_joint">0 0 0 0 -0 0</pose>
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>1e-5</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>1e-5</iyy>
+          <iyz>0</iyz>
+          <izz>1e-5</izz>
+        </inertia>
+      </inertial>
+
       <sensor name="rsf_hokuyo3d" type="gpu_lidar">
         <topic>/rsf/hokuyo3d</topic>
         <update_rate>20</update_rate>
@@ -229,47 +270,9 @@
         <visualize>true</visualize>
         <pose>0 0 0 0 -0 0</pose>
         <ignition_frame_id>rsf_hokuyo3d</ignition_frame_id>
+        <gz_frame_id>rsf_hokuyo3d</gz_frame_id>
         <always_on>1</always_on>
       </sensor>
-
-      <sensor name="rsf_imu" type="imu">
-        <topic>/rsf/imu</topic>
-        <update_rate>1000</update_rate>
-        <always_on>1</always_on>
-        <visualize>0</visualize>
-        <pose>-0.1 0 -0.02 0 -0 0</pose>
-        <ignition_frame_id>rsf_hokuyo3d_imu</ignition_frame_id>
-      </sensor>
-
-      <sensor name="rsf_gnss" type="navsat">
-        <topic>/rsf/nav_sat_fix</topic>
-        <update_rate>1</update_rate>
-        <always_on>1</always_on>
-        <pose>-0.1 0 0.085 0 -0 0</pose>
-        <ignition_frame_id>rsf_gnss</ignition_frame_id>
-      </sensor>
-
-    </link>
-
-    <joint name="rsf_hokuyo3d_joint" type="fixed">
-      <pose relative_to="rsf_x001_link">0 0 0 0 -0 0</pose>
-      <parent>rsf_x001_link</parent>
-      <child>rsf_hokuyo3d</child>
-    </joint>
-
-    <link name="rsf_hokuyo3d">
-      <pose relative_to="rsf_hokuyo3d_joint">0 0 0 0 -0 0</pose>
-      <inertial>
-        <mass>0.0001</mass>
-        <inertia>
-          <ixx>1e-9</ixx>
-          <ixy>0</ixy>
-          <ixz>0</ixz>
-          <iyy>1e-9</iyy>
-          <iyz>0</iyz>
-          <izz>1e-9</izz>
-        </inertia>
-      </inertial>
     </link>
 
     <joint name="left_caster_ball_joint" type="ball">

@@ -144,6 +144,12 @@ ros2 launch rsf_navigation_executor waypoint_recording.launch.py \
 
 ## 4. ウェイポイント走行
 
+実装は公式の `nav2_waypoint_follower`（`FollowWaypoints` アクション）を
+`nav2_simple_commander` の `BasicNavigator` で駆動する薄いクライアントである。
+走行そのものは waypoint_follower / bt_navigator 側が行い、このノードは
+yaml の読み込み・checkpoint によるレグ分割・`start`/`pause`/`resume` サービス・
+速度制限の publish を担う。
+
 ```bash
 ros2 launch rsf_navigation_executor waypoint_navigation.launch.py
 ```
@@ -175,12 +181,23 @@ waypoints:
   - {x: 0.0, y: 3.0, yaw: 3.14159}
 ```
 
+`loop` はウェイポイントのキーではなく yaml のトップレベルキー。
+
 | キー | 説明 |
 |---|---|
+| `loop`（トップレベル） | `true` で最終点から先頭に戻る |
 | `x`, `y`, `yaw` | 目標姿勢（map 座標系、yaw はラジアン） |
-| `speed_limit` | 次の点までの速度上限（省略可） |
+| `speed_limit` | **その点へ向かう区間**の速度上限。0〜100 の % 値、0.0（省略時）は制限解除 |
 | `checkpoint` | `true` なら到達必須。到達すると停止して `resume` を待ち、失敗すると同じ点を再試行する。省略時は失敗してもスキップして次へ進む |
-| `loop` | `true` で最終点から先頭に戻る |
+
+checkpoint はウェイポイント列をレグ（区間）に分割する境界で、そこまでを 1 回の
+`FollowWaypoints` で走る。レグ内の非 checkpoint の点は公式サーバの
+`stop_on_failure: false` によりスキップされる（スキップされた点は `missed waypoints`
+としてログに出るだけで、走行は止まらない）。checkpoint 自体への到達が失敗した場合は
+その checkpoint だけを対象にリトライする。
+
+BackUp を除いた behavior tree（下記）は `FollowWaypoints` → waypoint_follower →
+`NavigateToPose` 経由でも変わらず適用される。
 
 ## 設定ファイル
 

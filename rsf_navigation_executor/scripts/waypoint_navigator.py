@@ -153,7 +153,7 @@ class WaypointNavigator(BasicNavigator):
         self.paused_leg = None
         self.pause_requested = False
         self.set_state(State.RUNNING)
-        self.send_leg(self.legs[self.leg_index])
+        self.send_leg(self.legs[self.leg_index], reason='start')
 
     def do_pause(self):
         self.pause_requested = True
@@ -164,16 +164,28 @@ class WaypointNavigator(BasicNavigator):
             leg = self.paused_leg
             self.paused_leg = None
             self.set_state(State.RUNNING)
-            self.send_leg(leg)
+            self.send_leg(leg, reason='resume')
         elif self.state == State.HOLD:
             self.set_state(State.RUNNING)
             self.advance_leg()
 
     # --- レグ送信・結果処理 ---
 
-    def send_leg(self, leg):
+    def send_leg(self, leg, reason='send'):
+        if not self.follow_waypoints_client.server_is_ready():
+            # followWaypoints() はサーバを無限待ちするため、走行中に落ちていたら先に検知して IDLE に戻す
+            self.get_logger().error('follow_waypoints action server not available, stopping')
+            self.set_state(State.IDLE)
+            return
+
         self.current_leg = leg
+        # BasicNavigator はゴール間で feedback をクリアしないため、前レグの feedback が
+        # 新レグに引き継がれて誤適用される(waypoint を飛ばす)のを防ぐ
+        self.feedback = None
+        self.publish_speed_limit(speed_limit_for(leg, 0))
         poses = [self.to_pose_stamped(wp) for wp in leg.waypoints]
+        self.get_logger().info(
+            f'{reason}: leg starting at waypoint {leg.start_index}, {len(leg.waypoints)} waypoints')
         if not self.followWaypoints(poses):
             self.get_logger().error(f'waypoint leg starting at {leg.start_index} was rejected')
             self.set_state(State.IDLE)
@@ -204,29 +216,47 @@ class WaypointNavigator(BasicNavigator):
         self.state = new_state
 
     def handle_succeeded(self):
+        # pause 要求とゴール終端が競合しても取りこぼさないよう、結果処理の冒頭で必ず読み捨てる
+        pause_requested = self.pause_requested
+        self.pause_requested = False
+
         leg = self.current_leg
+        # Humble の waypoint_follower は cancel 時に内部の失敗点リストをクリアしないため、
+        # pause→resume 後に完了したレグの missed_waypoints に cancel 前のスキップ点が
+        # 残留することがある(上流の既知の癖。実害は良性の空リトライ 1 回程度)
         missed_local = list(self.result_future.result().result.missed_waypoints)
         if missed_local:
             missed_global = [leg.start_index + i for i in missed_local]
             self.get_logger().warn(f'missed waypoints: {missed_global}')
 
         last_index = len(leg.waypoints) - 1
-        if leg.ends_with_checkpoint and last_index in missed_local:
-            cp_index = leg.start_index + last_index
-            self.get_logger().info(f'checkpoint at waypoint {cp_index} missed, retrying')
-            self.send_leg(Leg(
-                start_index=cp_index,
-                waypoints=[leg.waypoints[last_index]],
-                ends_with_checkpoint=True))
-            return
+        checkpoint_missed = leg.ends_with_checkpoint and last_index in missed_local
 
-        if leg.ends_with_checkpoint:
+        if leg.ends_with_checkpoint and not checkpoint_missed:
+            # 既に停止して resume 待ちになるので、pause 要求があってもこれで意図を満たす
             self.get_logger().info(
                 f'reached checkpoint at waypoint {leg.start_index + last_index}, waiting for resume')
             self.set_state(State.HOLD)
             return
 
-        self.advance_leg()
+        if checkpoint_missed:
+            cp_index = leg.start_index + last_index
+            retry_leg = Leg(
+                start_index=cp_index,
+                waypoints=[leg.waypoints[last_index]],
+                ends_with_checkpoint=True)
+            self.get_logger().info(f'checkpoint at waypoint {cp_index} missed, retrying')
+            if pause_requested:
+                self.paused_leg = retry_leg
+                self.set_state(State.PAUSED)
+            else:
+                self.send_leg(retry_leg, reason='checkpoint retry')
+            return
+
+        if pause_requested:
+            self.pause_before_next_leg()
+        else:
+            self.advance_leg()
 
     def handle_canceled(self):
         if self.pause_requested:
@@ -236,8 +266,17 @@ class WaypointNavigator(BasicNavigator):
             self.handle_failed()
 
     def handle_failed(self):
+        pause_requested = self.pause_requested
+        self.pause_requested = False
+
         leg = self.current_leg
         self.get_logger().warn(f'waypoint leg starting at {leg.start_index} failed')
+
+        if pause_requested:
+            # 失敗と pause 要求が競合した場合も cancel 経由と同じ扱いにする
+            self.enter_paused()
+            return
+
         if not leg.ends_with_checkpoint:
             self.advance_leg()
             return
@@ -249,14 +288,16 @@ class WaypointNavigator(BasicNavigator):
         self.send_leg(Leg(
             start_index=leg.start_index + index,
             waypoints=leg.waypoints[index:],
-            ends_with_checkpoint=True))
+            ends_with_checkpoint=True), reason='failure retry')
 
     def enter_paused(self):
         leg = self.current_leg
         feedback = self.getFeedback()
         index = feedback.current_waypoint if feedback is not None else 0
         if not (0 <= index < len(leg.waypoints)):
-            index = len(leg.waypoints) - 1
+            # レグ送信直後の cancel など、feedback がまだ前レグのものか未受信の場合は
+            # 点を飛ばさないよう先頭から再開する(安全側)
+            index = 0
         self.paused_leg = Leg(
             start_index=leg.start_index + index,
             waypoints=leg.waypoints[index:],
@@ -264,14 +305,25 @@ class WaypointNavigator(BasicNavigator):
         self.set_state(State.PAUSED)
 
     def advance_leg(self):
+        next_leg = self._next_official_leg()
+        if next_leg is not None:
+            self.send_leg(next_leg, reason='advance')
+
+    def pause_before_next_leg(self):
+        next_leg = self._next_official_leg()
+        if next_leg is not None:
+            self.paused_leg = next_leg
+            self.set_state(State.PAUSED)
+
+    def _next_official_leg(self):
         self.leg_index += 1
         if self.leg_index >= len(self.legs):
             if not self.loop:
                 self.get_logger().info('finished')
                 self.set_state(State.FINISHED)
-                return
+                return None
             self.leg_index = 0
-        self.send_leg(self.legs[self.leg_index])
+        return self.legs[self.leg_index]
 
 
 def main():

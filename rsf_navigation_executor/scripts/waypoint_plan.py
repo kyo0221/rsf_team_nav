@@ -22,6 +22,8 @@ def load_waypoints(path):
 
     waypoints = []
     for i, wp in enumerate(raw_waypoints):
+        if not isinstance(wp, dict):
+            raise ValueError(f'waypoint {i} must be a mapping with x/y, got {wp!r}')
         missing = [key for key in ('x', 'y') if key not in wp]
         if missing:
             raise ValueError(f'waypoint {i} is missing required key(s) {missing}: {wp}')

@@ -193,8 +193,19 @@ waypoints:
 checkpoint はウェイポイント列をレグ（区間）に分割する境界で、そこまでを 1 回の
 `FollowWaypoints` で走る。レグ内の非 checkpoint の点は公式サーバの
 `stop_on_failure: false` によりスキップされる（スキップされた点は `missed waypoints`
-としてログに出るだけで、走行は止まらない）。checkpoint 自体への到達が失敗した場合は
-その checkpoint だけを対象にリトライする。
+としてログに出るだけで、走行は止まらない）。checkpoint 自体への到達が失敗した場合の
+リトライ方法はレグの終わり方によって異なる:
+
+- レグ全体は成功したが checkpoint の点だけ missed だった場合は、その checkpoint 1 点
+  だけを対象にリトライする。
+- レグ自体が失敗した場合は、直前まで走行中だった点(feedback から分かる位置)から
+  末尾の checkpoint までを再送する。feedback を一度も受信していなければレグ全体を
+  再送する。
+
+既知の制限: Humble の `nav2_waypoint_follower` は cancel(`pause`)しても内部の
+スキップ済み点リストをクリアしないため、`pause` → `resume` の直後に完了する
+レグの `missed_waypoints` に pause 前のスキップ点が残留することがある。実害は
+良性の空リトライが 1 回余分に走る程度で、走行自体は継続する。
 
 BackUp を除いた behavior tree（下記）は `FollowWaypoints` → waypoint_follower →
 `NavigateToPose` 経由でも変わらず適用される。

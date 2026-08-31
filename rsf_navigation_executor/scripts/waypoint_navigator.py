@@ -1,43 +1,47 @@
 #!/usr/bin/env python3
 import math
+from enum import Enum
 
 import rclpy
-import yaml
-from action_msgs.msg import GoalStatus
-from geometry_msgs.msg import Pose, PoseArray
-from nav2_msgs.action import NavigateToPose
+from geometry_msgs.msg import Pose, PoseArray, PoseStamped
 from nav2_msgs.msg import SpeedLimit
-from rclpy.action import ActionClient
-from rclpy.node import Node
+from nav2_simple_commander.robot_navigator import BasicNavigator, TaskResult
 from rclpy.qos import DurabilityPolicy, QoSProfile
 from std_srvs.srv import Trigger
-
-SERVER_WAIT_TIMEOUT = 5.0
+from waypoint_plan import Leg, load_waypoints, speed_limit_for, split_legs
 
 
 def yaw_to_quaternion(yaw):
     return (math.sin(yaw / 2.0), math.cos(yaw / 2.0))
 
 
-class WaypointNavigator(Node):
+class State(Enum):
+    IDLE = 'idle'
+    RUNNING = 'running'
+    HOLD = 'hold'
+    PAUSED = 'paused'
+    FINISHED = 'finished'
+
+
+class WaypointNavigator(BasicNavigator):
 
     def __init__(self):
-        super().__init__('waypoint_navigator')
+        super().__init__(node_name='waypoint_navigator')
+        # emcl2 は lifecycle ノードではないため waitUntilNav2Active() は呼ばない(デフォルトの amcl/get_state 待ちで無限ループする)
         self.declare_parameter('waypoints_file', '')
 
-        with open(self.get_parameter('waypoints_file').value) as f:
-            data = yaml.safe_load(f)
-        self.waypoints = data['waypoints']
-        self.loop = bool(data.get('loop', False))
+        self.waypoints, self.loop = load_waypoints(self.get_parameter('waypoints_file').value)
+        self.legs = split_legs(self.waypoints)
 
-        self.index = 0
-        self.running = False
-        self.paused = False
-        self.checkpoint_hold = False
-        self.goal_handle = None
-        self.goal_seq = 0
+        self.state = State.IDLE
+        self.leg_index = 0
+        self.current_leg = None
+        self.paused_leg = None
+        self.pause_requested = False
+        self.pending_start = False
+        self.pending_pause = False
+        self.pending_resume = False
 
-        self.action_client = ActionClient(self, NavigateToPose, 'navigate_to_pose')
         self.speed_limit_pub = self.create_publisher(SpeedLimit, 'speed_limit', 10)
         # RViz を後から起動しても見えるように latch する。
         # /waypoints は nav2_rviz_plugins の Navigation 2 パネルが
@@ -56,146 +60,225 @@ class WaypointNavigator(Node):
         msg.header.frame_id = 'map'
         msg.header.stamp = self.get_clock().now().to_msg()
         for wp in self.waypoints:
-            qz, qw = yaw_to_quaternion(float(wp.get('yaw', 0.0)))
+            qz, qw = yaw_to_quaternion(wp['yaw'])
             pose = Pose()
-            pose.position.x = float(wp['x'])
-            pose.position.y = float(wp['y'])
+            pose.position.x = wp['x']
+            pose.position.y = wp['y']
             pose.orientation.z = qz
             pose.orientation.w = qw
             msg.poses.append(pose)
         return msg
 
+    # --- サービス: 状態検査 + フラグ設定 + 即時応答のみ。navigator のメソッドはここから呼ばない(ネスト spin 防止) ---
+
     def on_start(self, request, response):
-        if self.running:
+        if self.state not in (State.IDLE, State.FINISHED):
             response.success = False
             response.message = 'already running'
             return response
-        self.running = True
-        self.paused = False
-        self.index = 0
-        if not self.send_current_goal():
+        if not self.follow_waypoints_client.server_is_ready():
             response.success = False
-            response.message = 'navigate_to_pose action server not available'
+            response.message = 'follow_waypoints action server not available'
             return response
+        self.pending_start = True
         response.success = True
         return response
 
     def on_pause(self, request, response):
-        if not self.running or self.paused:
-            response.success = False
-            response.message = 'not running' if not self.running else 'already paused'
+        if self.state == State.RUNNING:
+            self.pending_pause = True
+            response.success = True
             return response
-        self.paused = True
-        self.goal_seq += 1
-        if self.goal_handle is not None:
-            self.goal_handle.cancel_goal_async()
-            self.goal_handle = None
-        response.success = True
+        if self.state in (State.HOLD, State.PAUSED):
+            response.success = False
+            response.message = 'already paused'
+            return response
+        response.success = False
+        response.message = 'not running'
         return response
 
     def on_resume(self, request, response):
-        if not self.running or not self.paused:
-            response.success = False
-            response.message = 'not running' if not self.running else 'not paused'
+        if self.state in (State.PAUSED, State.HOLD):
+            self.pending_resume = True
+            response.success = True
             return response
-        self.paused = False
-        if self.checkpoint_hold:
-            self.checkpoint_hold = False
-            sent = self.advance_and_send()
-        else:
-            sent = self.send_current_goal()
-        if not sent:
+        if self.state == State.RUNNING:
             response.success = False
-            response.message = 'navigate_to_pose action server not available'
+            response.message = 'not paused'
             return response
-        response.success = True
+        response.success = False
+        response.message = 'not running'
         return response
 
-    def send_current_goal(self):
-        if not self.action_client.wait_for_server(timeout_sec=SERVER_WAIT_TIMEOUT):
-            self.get_logger().error('navigate_to_pose action server not available')
-            self.running = False
-            return False
+    # --- メインループ ---
 
-        wp = self.waypoints[self.index]
-        qz, qw = yaw_to_quaternion(float(wp.get('yaw', 0.0)))
+    def run(self):
+        while rclpy.ok():
+            if self.state == State.RUNNING:
+                self.tick_running()
+            else:
+                rclpy.spin_once(self, timeout_sec=0.1)
+            self.process_flags()
 
-        self.publish_speed_limit(wp)
+    def process_flags(self):
+        if self.pending_start:
+            self.pending_start = False
+            self.do_start()
+        if self.pending_pause:
+            self.pending_pause = False
+            self.do_pause()
+        if self.pending_resume:
+            self.pending_resume = False
+            self.do_resume()
 
-        goal_msg = NavigateToPose.Goal()
-        goal_msg.pose.header.frame_id = 'map'
-        goal_msg.pose.header.stamp = self.get_clock().now().to_msg()
-        goal_msg.pose.pose.position.x = float(wp['x'])
-        goal_msg.pose.pose.position.y = float(wp['y'])
-        goal_msg.pose.pose.orientation.z = qz
-        goal_msg.pose.pose.orientation.w = qw
+    def tick_running(self):
+        # isTaskComplete() 自体が最大 0.1 秒 spin するのでサービスもここで処理される
+        if not self.isTaskComplete():
+            feedback = self.getFeedback()
+            if feedback is not None:
+                # MPPI は制御ループが 1 秒途切れると速度制限を内部リセットするため、毎ループ publish し続ける
+                self.publish_speed_limit(speed_limit_for(self.current_leg, feedback.current_waypoint))
+            return
 
-        self.goal_seq += 1
-        seq = self.goal_seq
-        self.get_logger().info(f'Sending waypoint {self.index}: x={wp["x"]}, y={wp["y"]}')
-        self.action_client.send_goal_async(goal_msg).add_done_callback(
-            lambda future: self.on_goal_response(future, seq))
-        return True
+        result = self.getResult()
+        if result == TaskResult.SUCCEEDED:
+            self.handle_succeeded()
+        elif result == TaskResult.CANCELED:
+            self.handle_canceled()
+        else:
+            self.handle_failed()
 
-    def publish_speed_limit(self, wp):
+    def do_start(self):
+        self.leg_index = 0
+        self.paused_leg = None
+        self.pause_requested = False
+        self.set_state(State.RUNNING)
+        self.send_leg(self.legs[self.leg_index])
+
+    def do_pause(self):
+        self.pause_requested = True
+        self.cancelTask()
+
+    def do_resume(self):
+        if self.state == State.PAUSED:
+            leg = self.paused_leg
+            self.paused_leg = None
+            self.set_state(State.RUNNING)
+            self.send_leg(leg)
+        elif self.state == State.HOLD:
+            self.set_state(State.RUNNING)
+            self.advance_leg()
+
+    # --- レグ送信・結果処理 ---
+
+    def send_leg(self, leg):
+        self.current_leg = leg
+        poses = [self.to_pose_stamped(wp) for wp in leg.waypoints]
+        if not self.followWaypoints(poses):
+            self.get_logger().error(f'waypoint leg starting at {leg.start_index} was rejected')
+            self.set_state(State.IDLE)
+
+    def to_pose_stamped(self, wp):
+        pose = PoseStamped()
+        pose.header.frame_id = 'map'
+        pose.header.stamp = self.get_clock().now().to_msg()
+        qz, qw = yaw_to_quaternion(wp['yaw'])
+        pose.pose.position.x = wp['x']
+        pose.pose.position.y = wp['y']
+        pose.pose.orientation.z = qz
+        pose.pose.orientation.w = qw
+        return pose
+
+    def publish_speed_limit(self, value):
         msg = SpeedLimit()
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.header.frame_id = 'map'
         msg.percentage = True
-        msg.speed_limit = float(wp.get('speed_limit', 0.0))
+        msg.speed_limit = float(value)
         self.speed_limit_pub.publish(msg)
 
-    def on_goal_response(self, future, seq):
-        if seq != self.goal_seq:
-            return
-        goal_handle = future.result()
-        if not goal_handle.accepted:
-            self.running = False
-            self.get_logger().error(f'Waypoint {self.index} rejected, stopping')
-            return
-        self.goal_handle = goal_handle
-        goal_handle.get_result_async().add_done_callback(
-            lambda result_future: self.on_result(result_future, seq))
+    def set_state(self, new_state):
+        if self.state == State.RUNNING and new_state != State.RUNNING:
+            # 走行中でなくなるので速度制限を解除する(speed_limit=0.0 は解除であり停止ではない)
+            self.publish_speed_limit(0.0)
+        self.state = new_state
 
-    def on_result(self, future, seq):
-        if seq != self.goal_seq:
-            return
+    def handle_succeeded(self):
+        leg = self.current_leg
+        missed_local = list(self.result_future.result().result.missed_waypoints)
+        if missed_local:
+            missed_global = [leg.start_index + i for i in missed_local]
+            self.get_logger().warn(f'missed waypoints: {missed_global}')
 
-        checkpoint = self.waypoints[self.index].get('checkpoint', False)
-        status = future.result().status
-        if status != GoalStatus.STATUS_SUCCEEDED:
-            self.get_logger().warn(f'Waypoint {self.index} did not succeed (status {status})')
-            if checkpoint:
-                self.get_logger().info(f'Waypoint {self.index} is a checkpoint, retrying')
-                self.send_current_goal()
-            else:
-                self.advance_and_send()
+        last_index = len(leg.waypoints) - 1
+        if leg.ends_with_checkpoint and last_index in missed_local:
+            cp_index = leg.start_index + last_index
+            self.get_logger().info(f'checkpoint at waypoint {cp_index} missed, retrying')
+            self.send_leg(Leg(
+                start_index=cp_index,
+                waypoints=[leg.waypoints[last_index]],
+                ends_with_checkpoint=True))
             return
 
-        if checkpoint:
-            self.paused = True
-            self.checkpoint_hold = True
-            self.get_logger().info(f'Reached checkpoint at waypoint {self.index}, waiting for resume')
+        if leg.ends_with_checkpoint:
+            self.get_logger().info(
+                f'reached checkpoint at waypoint {leg.start_index + last_index}, waiting for resume')
+            self.set_state(State.HOLD)
             return
 
-        self.advance_and_send()
+        self.advance_leg()
 
-    def advance_and_send(self):
-        self.index += 1
-        if self.index >= len(self.waypoints):
+    def handle_canceled(self):
+        if self.pause_requested:
+            self.pause_requested = False
+            self.enter_paused()
+        else:
+            self.handle_failed()
+
+    def handle_failed(self):
+        leg = self.current_leg
+        self.get_logger().warn(f'waypoint leg starting at {leg.start_index} failed')
+        if not leg.ends_with_checkpoint:
+            self.advance_leg()
+            return
+
+        feedback = self.getFeedback()
+        index = feedback.current_waypoint if feedback is not None else 0
+        if not (0 <= index < len(leg.waypoints)):
+            index = 0
+        self.send_leg(Leg(
+            start_index=leg.start_index + index,
+            waypoints=leg.waypoints[index:],
+            ends_with_checkpoint=True))
+
+    def enter_paused(self):
+        leg = self.current_leg
+        feedback = self.getFeedback()
+        index = feedback.current_waypoint if feedback is not None else 0
+        if not (0 <= index < len(leg.waypoints)):
+            index = len(leg.waypoints) - 1
+        self.paused_leg = Leg(
+            start_index=leg.start_index + index,
+            waypoints=leg.waypoints[index:],
+            ends_with_checkpoint=leg.ends_with_checkpoint)
+        self.set_state(State.PAUSED)
+
+    def advance_leg(self):
+        self.leg_index += 1
+        if self.leg_index >= len(self.legs):
             if not self.loop:
-                self.running = False
-                self.get_logger().info('Waypoint navigation finished')
-                return True
-            self.index = 0
-        return self.send_current_goal()
+                self.get_logger().info('finished')
+                self.set_state(State.FINISHED)
+                return
+            self.leg_index = 0
+        self.send_leg(self.legs[self.leg_index])
 
 
 def main():
     rclpy.init()
     node = WaypointNavigator()
     try:
-        rclpy.spin(node)
+        node.run()
     except KeyboardInterrupt:
         pass
     except Exception:

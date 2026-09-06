@@ -5,9 +5,13 @@ repositories:
     version: main
   yp-spur:
     type: git
-    url: https://github.com/kyo0221/yp-spur.git
+    url: https://github.com/openspur/yp-spur.git
     version: master
   hokuyo_rsf:
     type: git
     url: https://github.com/open-rdc/hokuyo_rsf.git
     version: release
+  nmea_msgs:
+    type: git
+    url: https://github.com/hokuyo-rd-release/nmea_msgs.git
+    version: ros2
